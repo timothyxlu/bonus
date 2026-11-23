@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AccountDetailView } from "../components/AccountDetail";
 import { AccountForm } from "../components/AccountForm";
 import { daysLabel } from "../components/BonusRow";
-import { IconPlus } from "../components/icons";
-import { Badge, Button, Empty, ErrorText, Input, ProgressBar, Select, Sheet, Spinner, statusTone } from "../components/ui";
+import { IconGift, IconPlus } from "../components/icons";
+import { Badge, Button, Empty, ErrorText, Input, IssuerChip, ProgressBar, Select, Sheet, Spinner, statusTone } from "../components/ui";
 import { t, td, type MessageKey } from "../i18n";
 import { cx, fmtUsd } from "../lib/format";
 import { useAccounts } from "../lib/queries";
@@ -17,7 +17,7 @@ const COLS: { key: SortKey; label: MessageKey; className?: string }[] = [
   { key: "issuer", label: "acct.col.issuer", className: "hidden 2xl:table-cell" },
   { key: "status", label: "acct.col.status" },
   { key: "opened", label: "acct.col.opened", className: "whitespace-nowrap" },
-  { key: "fee", label: "acct.col.fee", className: "text-right" },
+  { key: "fee", label: "acct.col.fee", className: "hidden text-right 2xl:table-cell" },
   { key: "bonus", label: "acct.col.bonus" },
   { key: "benefits", label: "acct.col.benefits", className: "text-right" },
 ];
@@ -99,7 +99,7 @@ export function AccountsPage() {
           </option>
         ))}
       </Select>
-      <Button variant="primary" onClick={() => setCreating(true)} className="sm:ml-auto">
+      <Button variant="primary" onClick={() => setCreating(true)} className="sm:ml-auto" aria-label={t("acct.new")}>
         <IconPlus /> <span className="hidden sm:inline">{t("acct.new")}</span>
       </Button>
     </div>
@@ -115,57 +115,73 @@ export function AccountsPage() {
         {rows.length === 0 ? (
           <Empty>{t("acct.empty")}</Empty>
         ) : wide ? (
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:ring-slate-800">
+          <div className="overflow-hidden rounded-[var(--radius-panel)] bg-surface ring-1 ring-line">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs text-slate-500 dark:bg-slate-800/60">
+              <thead className="bg-sunken text-left text-xs text-muted">
                 <tr>
                   {COLS.map((c) => (
-                    <th key={c.key} className={cx("whitespace-nowrap px-3 py-2.5 font-medium", c.className)}>
+                    <th key={c.key} aria-sort={sort.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined} className={cx("whitespace-nowrap px-3 py-2.5 font-medium", c.className)}>
                       <button
-                        className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
+                        className="inline-flex items-center gap-1 hover:text-ink"
                         onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key ? (-s.dir as 1 | -1) : 1 }))}
                       >
                         {t(c.label)}
-                        {sort.key === c.key && <span>{sort.dir === 1 ? "▲" : "▼"}</span>}
+                        <span aria-hidden className={cx("text-[10px]", sort.key === c.key ? "text-brand" : "text-transparent")}>{sort.dir === 1 || sort.key !== c.key ? "▲" : "▼"}</span>
                       </button>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-line">
                 {rows.map((a) => (
                   <tr
                     key={a.id}
                     onClick={() => select(a.id)}
-                    className={cx("cursor-pointer transition hover:bg-slate-50 dark:hover:bg-slate-800/50", selectedId === a.id && "bg-indigo-50/60 dark:bg-indigo-950/40")}
+                    className={cx("cursor-pointer transition-colors duration-150 hover:bg-sunken", selectedId === a.id && "bg-brand-soft hover:bg-brand-soft", a.status !== "open" && "text-muted")}
                   >
-                    <td className="px-3 py-2.5">
-                      <p className="font-medium">{a.nickname || a.productName}</p>
-                      <p className="text-xs text-slate-500">
-                        <span className="2xl:hidden">{a.institutionName} </span>
-                        {a.last4 ? `···${a.last4}` : ""} {a.ownerType === "business" ? td("ownerType.business") : ""} {a.isAuthorizedUser ? "AU" : ""}
-                      </p>
+                    <td className="min-w-60 px-3 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <IssuerChip issuer={a.institutionId} closed={a.status !== "open"} />
+                        <div className="min-w-0">
+                          <button
+                            className="text-left font-medium text-ink focus-visible:underline"
+                            aria-current={selectedId === a.id ? "true" : undefined}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              select(a.id);
+                            }}
+                          >
+                            {a.nickname || a.productName}
+                          </button>
+                          <p className="flex gap-x-2 truncate text-xs whitespace-nowrap text-muted">
+                            <span className="2xl:hidden">{a.institutionName}</span>
+                            {a.last4 && <span className="tabular">尾号 {a.last4}</span>}
+                            {a.ownerType === "business" && <span>{td("ownerType.business")}</span>}
+                            {a.isAuthorizedUser && <span>AU</span>}
+                          </p>
+                        </div>
+                      </div>
                     </td>
-                    <td className="hidden px-3 py-2.5 text-slate-600 dark:text-slate-300 2xl:table-cell">{a.institutionName}</td>
+                    <td className="hidden px-3 py-2.5 text-muted 2xl:table-cell">{a.institutionName}</td>
                     <td className="px-3 py-2.5">
                       <Badge tone={statusTone(a.status)}>{td(`status.${a.status}`)}</Badge>
                     </td>
-                    <td className="tabular whitespace-nowrap px-3 py-2.5 text-slate-600 dark:text-slate-300">{a.openedAt ?? "—"}</td>
-                    <td className="tabular px-3 py-2.5 text-right">{fmtUsd(a.annualFee)}</td>
+                    <td className="tabular whitespace-nowrap px-3 py-2.5 text-muted">{a.openedAt ?? "—"}</td>
+                    <td className="tabular hidden px-3 py-2.5 text-right 2xl:table-cell">{fmtUsd(a.annualFee)}</td>
                     <td className="w-40 px-3 py-2.5">
                       {a.activeBonus ? (
                         <div className="space-y-1">
-                          <div className="flex justify-between text-xs text-slate-500">
+                          <div className="flex justify-between text-xs text-muted">
                             <span>{Math.round(a.activeBonus.ratio * 100)}%</span>
                             <span>{daysLabel(a.activeBonus)}</span>
                           </div>
                           <ProgressBar ratio={a.activeBonus.ratio} tone={a.activeBonus.daysLeft !== null && a.activeBonus.daysLeft <= 14 ? "amber" : "indigo"} />
                         </div>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-faint">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 text-right">{a.unusedBenefits > 0 ? <Badge tone="amber">{a.unusedBenefits}</Badge> : <span className="text-slate-400">0</span>}</td>
+                    <td className="px-3 py-2.5 text-right">{a.unusedBenefits > 0 ? <Badge tone="amber"><IconGift small />{a.unusedBenefits}</Badge> : <span className="text-faint">0</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -175,28 +191,36 @@ export function AccountsPage() {
           <ul className="space-y-2">
             {rows.map((a) => (
               <li key={a.id}>
-                <button onClick={() => select(a.id)} className="w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200/70 active:bg-slate-50 dark:bg-slate-900 dark:ring-slate-800">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
+                <button onClick={() => select(a.id)} className="w-full rounded-[var(--radius-panel)] border border-line bg-surface p-4 text-left transition-colors duration-150 active:bg-sunken">
+                  <div className="flex items-start gap-3">
+                    <IssuerChip issuer={a.institutionId} closed={a.status !== "open"} />
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{a.nickname || a.productName}</p>
-                      <p className="text-xs text-slate-500">
-                        {a.institutionName} {a.last4 ? `· ···${a.last4}` : ""} {a.openedAt ? `· ${a.openedAt}` : ""}
+                      <p className="flex flex-wrap gap-x-2 text-xs text-muted">
+                        <span>{a.institutionName}</span>
+                        {a.last4 && <span className="tabular">尾号 {a.last4}</span>}
+                        {a.openedAt && <span className="tabular">{a.openedAt}</span>}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {a.unusedBenefits > 0 && <Badge tone="amber">🎁 {a.unusedBenefits}</Badge>}
+                    <div className="flex shrink-0 flex-col items-end gap-1">
                       <Badge tone={statusTone(a.status)}>{td(`status.${a.status}`)}</Badge>
+                      {a.unusedBenefits > 0 && (
+                        <Badge tone="amber">
+                          <IconGift small />
+                          {a.unusedBenefits}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   {a.activeBonus && (
                     <div className="mt-3 space-y-1">
-                      <div className="flex justify-between text-xs text-slate-500">
+                      <div className="flex justify-between text-xs text-muted">
                         <span>
                           {fmtUsd(a.activeBonus.progress)} / {fmtUsd(a.activeBonus.amountRequired)}
                         </span>
                         <span>{daysLabel(a.activeBonus)}</span>
                       </div>
-                      <ProgressBar ratio={a.activeBonus.ratio} />
+                      <ProgressBar ratio={a.activeBonus.ratio} tone={a.activeBonus.daysLeft !== null && a.activeBonus.daysLeft <= 14 ? "amber" : "indigo"} />
                     </div>
                   )}
                 </button>
@@ -208,7 +232,7 @@ export function AccountsPage() {
 
       {/* Wide: right detail panel */}
       {wide && (
-        <aside className="sticky top-6 hidden max-h-[calc(100dvh-3rem)] w-[420px] shrink-0 overflow-y-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-900 dark:ring-slate-800 lg:block xl:w-[480px]">
+        <aside className="sticky top-6 hidden max-h-[calc(100dvh-3rem)] w-[420px] shrink-0 overflow-y-auto rounded-[var(--radius-panel)] border border-line bg-surface p-5 lg:block xl:w-[480px]">
           {selectedId ? <AccountDetailView key={selectedId} id={selectedId} onDeleted={() => select(null)} /> : <Empty>{t("acct.select")}</Empty>}
         </aside>
       )}

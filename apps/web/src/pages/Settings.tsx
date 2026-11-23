@@ -26,8 +26,8 @@ export function SettingsPage() {
       <div className="space-y-4">
         <CatalogCard />
         <Card title={t("settings.mcp")}>
-          <p className="text-sm text-slate-600 dark:text-slate-400">{t("settings.mcpHint")}</p>
-          <code className="mt-2 block rounded-lg bg-slate-100 px-3 py-2 text-sm dark:bg-slate-800">{`${location.origin}/mcp`}</code>
+          <p className="text-sm text-muted">{t("settings.mcpHint")}</p>
+          <code className="mt-2 block rounded-[var(--radius-control)] bg-sunken px-3 py-2 text-sm">{`${location.origin}/mcp`}</code>
         </Card>
       </div>
     </div>
@@ -52,7 +52,7 @@ function ImportCard() {
   const go = (dryRun: boolean) => run.mutate(dryRun, { onSuccess: (r) => setResult(r) });
   return (
     <Card title={t("settings.import")}>
-      <p className="mb-3 text-sm text-slate-600 dark:text-slate-400">{t("settings.importHint")}</p>
+      <p className="mb-3 text-sm text-muted">{t("settings.importHint")}</p>
       <div className="space-y-3">
         <div className="flex gap-2">
           <Input type="file" accept=".json,.csv,application/json,text/csv" onChange={(e) => onFile(e.target.files?.[0])} className="flex-1 py-1.5" />
@@ -64,13 +64,13 @@ function ImportCard() {
         <Textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-xs" placeholder='{"version":1,"accounts":[...]}' />
         <ErrorText error={run.error} />
         {result && (
-          <div className="rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800">
+          <div className="rounded-[var(--radius-control)] bg-sunken p-3 text-sm">
             <p className="font-medium">
               {result.dryRun ? "[dry run] " : ""}
               {t("settings.importResult", { created: result.created, skipped: result.skipped.length, errors: result.errors.length })}
             </p>
             {[...result.errors.map((e) => `#${e.index + 1}: ${e.error}`), ...result.skipped.map((s) => `#${s.index + 1}: ${s.reason}`)].map((l) => (
-              <p key={l} className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              <p key={l} className="mt-1 text-xs text-muted">
                 {l}
               </p>
             ))}
@@ -99,7 +99,7 @@ function CatalogCard() {
   );
   return (
     <Card title={t("settings.catalog")} action={<Button size="sm" onClick={() => sync.mutate(undefined, { onSuccess: (r) => setMsg(t("settings.synced", { n: r.products })) })}>{t("settings.syncCatalog")}</Button>}>
-      {msg && <p className="mb-2 text-sm text-emerald-600">{msg}</p>}
+      {msg && <p className="mb-2 text-sm text-money">{msg}</p>}
       <form
         className="grid grid-cols-2 gap-3"
         onSubmit={(e) => {
@@ -107,7 +107,7 @@ function CatalogCard() {
           create.mutate(undefined, { onSuccess: () => setF((s) => ({ ...s, name: "", annualFee: "", family: "" })) });
         }}
       >
-        <p className="col-span-2 text-xs font-semibold text-slate-500">{t("settings.customProduct")}</p>
+        <p className="col-span-2 text-xs font-semibold text-muted">{t("settings.customProduct")}</p>
         <Field label={t("acct.institution")}>
           <Select value={f.institutionId} onChange={(e) => setF((s) => ({ ...s, institutionId: e.target.value }))} required>
             <option value="">—</option>

@@ -4,7 +4,7 @@
  */
 const zhCN = {
   appName: "Bonus",
-  tagline: "信用卡 · 开户奖励 · 福利追踪",
+  tagline: "信用卡奖励与福利记录",
 
   "nav.dashboard": "概览",
   "nav.accounts": "账户",
@@ -67,6 +67,14 @@ const zhCN = {
   "period.cardmember_year": "每卡年（周年）",
 
   "dash.five24": "Chase 5/24",
+  "dash.slotEmpty": "空位",
+  "dash.slotDrops": "{date} 空出",
+  "dash.slotsOver": "超出 {n} 张",
+  "dash.five24.room": "还能再开 {n} 张个人卡",
+  "dash.five24.full": "名额已满，{date} 起回到 4/24",
+  "dash.issuerUnknown": "未知",
+  "dash.title": "概览",
+  "dash.viewAll": "查看全部",
   "dash.five24.sub": "过去 24 个月新开个人卡",
   "dash.five24.under": "低于 5/24，可申请 Chase",
   "dash.five24.over": "已达 5/24，{date} 回到 4/24",
@@ -75,7 +83,7 @@ const zhCN = {
   "dash.deadlines": "即将到期的开卡奖励",
   "dash.noDeadlines": "没有进行中的奖励",
   "dash.unused": "本期未用福利",
-  "dash.noUnused": "本期福利都已用完 🎉",
+  "dash.noUnused": "本期福利都已用完",
   "dash.openAccounts": "使用中账户",
   "dash.total": "共 {n} 个账户（含已关闭）",
   "dash.annualFees": "年费合计",

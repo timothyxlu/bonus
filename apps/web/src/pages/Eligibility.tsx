@@ -1,13 +1,19 @@
 import { useMemo, useState } from "react";
 import { ProductSelect } from "../components/AccountForm";
-import { Badge, Card, ErrorText, Field, Input, Spinner, type Tone } from "../components/ui";
+import { Badge, Card, IssuerChip, ErrorText, Field, Input, Spinner, type Tone } from "../components/ui";
 import { ruleMessage, t, td } from "../i18n";
 import { cx, todayIso } from "../lib/format";
 import { useEligibility, useEligibilityOverview, useProducts } from "../lib/queries";
 import { useRouter } from "../lib/router";
 
 const statusTone: Record<string, Tone> = { eligible: "green", blocked: "red", uncertain: "amber" };
-const outcomeDot: Record<string, string> = { pass: "bg-emerald-500", block: "bg-rose-500", uncertain: "bg-amber-500", info: "bg-sky-500" };
+/** Outcome glyphs: shape + colour, never colour alone. */
+const outcomeMark: Record<string, { glyph: string; cls: string; label: string }> = {
+  pass: { glyph: "✓", cls: "bg-money-soft text-money", label: "通过" },
+  block: { glyph: "✕", cls: "bg-danger-soft text-danger", label: "阻止" },
+  uncertain: { glyph: "?", cls: "bg-warn-soft text-warn", label: "不确定" },
+  info: { glyph: "i", cls: "bg-brand-soft text-brand", label: "提示" },
+};
 
 export function EligibilityPage() {
   const { query, navigate } = useRouter();
@@ -58,18 +64,24 @@ export function EligibilityPage() {
                 </Badge>
               </div>
               {result.data.status === "blocked" && (
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                <p className="mt-1 text-sm text-muted">
                   {result.data.eligibleFrom ? t("elig.eligibleFrom", { date: result.data.eligibleFrom }) : t("elig.noDate")}
                 </p>
               )}
-              <h3 className="mt-4 mb-2 text-xs font-semibold text-slate-500">{t("elig.reasons")}</h3>
+              <h3 className="mt-4 mb-2 text-xs font-semibold text-muted">{t("elig.reasons")}</h3>
               <ul className="space-y-2">
                 {result.data.reasons.map((r, i) => (
                   <li key={i} className="flex gap-2.5 text-sm">
-                    <span className={cx("mt-1.5 h-2 w-2 shrink-0 rounded-full", outcomeDot[r.outcome])} />
+                    <span
+                      className={cx("mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-xs font-bold", outcomeMark[r.outcome]?.cls)}
+                      role="img"
+                      aria-label={outcomeMark[r.outcome]?.label}
+                    >
+                      {outcomeMark[r.outcome]?.glyph}
+                    </span>
                     <span>
                       {ruleMessage(r)}
-                      {r.eligibleFrom && <span className="tabular ml-1 text-xs text-slate-500">({r.eligibleFrom})</span>}
+                      {r.eligibleFrom && <span className="tabular ml-1 text-xs text-muted">({r.eligibleFrom})</span>}
                     </span>
                   </li>
                 ))}
@@ -84,19 +96,19 @@ export function EligibilityPage() {
         ) : overview.error ? (
           <ErrorText error={overview.error} />
         ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <ul className="divide-y divide-line">
             {(overview.data ?? []).map((r) => (
               <li key={r.productId}>
                 <button
-                  className={cx("flex w-full items-center justify-between gap-2 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50", productId === r.productId && "font-semibold")}
+                  className={cx("-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center justify-between gap-2 rounded-[var(--radius-row)] px-2 py-2 text-left text-sm hover:bg-sunken", productId === r.productId && "font-semibold")}
                   onClick={() => setProduct(r.productId)}
                 >
-                  <span className="min-w-0 truncate">
-                    <span className="text-xs text-slate-500">{r.issuer} · </span>
-                    {r.productName}
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <IssuerChip issuer={r.issuer} size="sm" />
+                    <span className="truncate">{r.productName}</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
-                    {r.eligibleFrom && <span className="tabular text-xs text-slate-500">{r.eligibleFrom}</span>}
+                    {r.eligibleFrom && <span className="tabular text-xs text-muted">{r.eligibleFrom}</span>}
                     <Badge tone={statusTone[r.status]}>{td(`elig.status.${r.status}`)}</Badge>
                   </span>
                 </button>

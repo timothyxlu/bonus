@@ -36,7 +36,7 @@ export interface AccountSummary extends Account {
 
 export function accountLabel(a: Pick<Account, "nickname" | "last4">, productName?: string | null) {
   const base = a.nickname || productName || "Account";
-  return a.last4 ? `${base} ···${a.last4}` : base;
+  return a.last4 ? `${base} ••${a.last4}` : base;
 }
 
 type Joined = { account: Account; product: Product | null; institution: Institution | null };

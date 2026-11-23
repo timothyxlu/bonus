@@ -20,9 +20,9 @@ export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: ()
       <header>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-slate-500">{data.institutionName ?? "—"}</p>
+            <p className="text-xs text-muted">{data.institutionName ?? "—"}</p>
             <h2 className="truncate text-lg font-semibold">{data.nickname || data.productName || "—"}</h2>
-            {data.nickname && data.productName && <p className="truncate text-sm text-slate-500">{data.productName}</p>}
+            {data.nickname && data.productName && <p className="truncate text-sm text-muted">{data.productName}</p>}
           </div>
           <div className="flex shrink-0 gap-1">
             <Button size="sm" onClick={() => setEditing(true)}>
@@ -40,7 +40,7 @@ export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: ()
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Badge tone={statusTone(data.status)}>{td(`status.${data.status}`)}</Badge>
           <Badge>{td(`ownerType.${data.ownerType}`)}</Badge>
-          {data.last4 && <Badge>···{data.last4}</Badge>}
+          {data.last4 && <Badge>••{data.last4}</Badge>}
           {data.isAuthorizedUser && <Badge tone="indigo">AU</Badge>}
           {data.annualFee !== null && <Badge>{t("acct.annualFee", { n: data.annualFee })}</Badge>}
           {data.currency && <Badge>{data.currency}</Badge>}
@@ -50,7 +50,7 @@ export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: ()
           <Meta label={t("acct.openedAt")} value={data.openedAt} />
           <Meta label={t("acct.closedAt")} value={data.closedAt} />
         </dl>
-        {data.notes && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-400">{data.notes}</p>}
+        {data.notes && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{data.notes}</p>}
       </header>
 
       <BonusesSection account={data} />
@@ -66,8 +66,8 @@ export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: ()
 
 function Meta({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="rounded-lg bg-slate-50 px-2 py-1.5 dark:bg-slate-800/60">
-      <dt className="text-slate-500">{label}</dt>
+    <div className="rounded-[var(--radius-control)] bg-sunken px-2 py-1.5">
+      <dt className="text-muted">{label}</dt>
       <dd className="font-medium">{value ?? "—"}</dd>
     </div>
   );
@@ -77,7 +77,7 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
         {action}
       </div>
       {children}
@@ -93,11 +93,11 @@ function BonusesSection({ account }: { account: Detail }) {
   return (
     <Section title={t("detail.bonuses")} action={<Button size="sm" variant="ghost" onClick={() => setEditing("new")}>+ {t("detail.addBonus")}</Button>}>
       {account.bonuses.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("detail.noBonuses")}</p>
+        <p className="text-sm text-muted">{t("detail.noBonuses")}</p>
       ) : (
         <ul className="space-y-3">
           {account.bonuses.map((b) => (
-            <li key={b.id} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
+            <li key={b.id} className="rounded-[var(--radius-row)] bg-sunken p-3">
               <BonusProgress b={b} title={b.description ?? undefined} />
               <div className="mt-2 flex flex-wrap gap-1">
                 {b.active && (
@@ -254,11 +254,11 @@ export function BenefitItem({ b, showAccount, allowDelete }: { b: Benefit; showA
   const undo = useMutate((useId: string) => api.del(`/benefit-uses/${useId}`));
   const del = useMutate(() => api.del(`/benefits/${b.id}`));
   return (
-    <div className={cx("rounded-xl p-3", b.unused ? "bg-amber-50/70 dark:bg-amber-950/30" : "bg-slate-50 dark:bg-slate-800/60")}>
+    <div className={cx("rounded-[var(--radius-row)] p-3", b.unused ? "bg-warn-soft" : "bg-sunken")}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{b.name}</p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted">
             {showAccount && b.accountLabel && <>{b.accountLabel} · </>}
             {td(`period.${b.period}`)} · {t("detail.periodEnds", { date: b.currentPeriod.end })}
           </p>
@@ -274,7 +274,7 @@ export function BenefitItem({ b, showAccount, allowDelete }: { b: Benefit; showA
             .filter((u) => u.usedOn >= b.currentPeriod.start)
             .map((u) => (
               <li key={u.id}>
-                <button className="rounded-md bg-white px-1.5 py-0.5 text-[11px] text-slate-600 ring-1 ring-slate-200 hover:line-through dark:bg-slate-900 dark:ring-slate-700" title="撤销" onClick={() => undo.mutate(u.id)}>
+                <button className="rounded-md bg-surface px-1.5 py-0.5 text-xs text-muted ring-1 ring-line hover:line-through" title="撤销" onClick={() => undo.mutate(u.id)}>
                   {u.usedOn} {fmtUsd(u.amount)} ✕
                 </button>
               </li>
@@ -321,7 +321,7 @@ function BenefitsSection({ account }: { account: Detail }) {
   return (
     <Section title={t("detail.benefits")} action={<Button size="sm" variant="ghost" onClick={() => setAdding(true)}>+ {t("detail.addBenefit")}</Button>}>
       {account.benefits.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("detail.noBenefits")}</p>
+        <p className="text-sm text-muted">{t("detail.noBenefits")}</p>
       ) : (
         <div className="space-y-2">
           {account.benefits.map((b) => (
@@ -381,7 +381,7 @@ function BenefitForm({ accountId, onDone }: { accountId: string; onDone: () => v
 // ---------------------------------------------------------------- Timeline
 
 const eventTone = (type: EventType) =>
-  type === "approved" || type === "bonus_earned" ? "bg-emerald-500" : type === "denied" || type === "closed" ? "bg-rose-500" : type === "note" ? "bg-slate-400" : "bg-indigo-500";
+  type === "approved" || type === "bonus_earned" ? "bg-money" : type === "denied" || type === "closed" ? "bg-danger" : type === "note" ? "bg-faint" : "bg-brand";
 
 function TimelineSection({ account }: { account: Detail }) {
   const [adding, setAdding] = useState(false);
@@ -391,27 +391,27 @@ function TimelineSection({ account }: { account: Detail }) {
   return (
     <Section title={t("detail.timeline")} action={<Button size="sm" variant="ghost" onClick={() => setAdding(true)}>+ {t("detail.addEvent")}</Button>}>
       {account.events.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("detail.noEvents")}</p>
+        <p className="text-sm text-muted">{t("detail.noEvents")}</p>
       ) : (
-        <ol className="relative ml-1.5 space-y-3 border-l border-slate-200 pl-4 dark:border-slate-700">
+        <ol className="relative ml-1.5 space-y-3 border-l border-line pl-4">
           {account.events.map((e) => (
             <li key={e.id} className="group relative">
-              <span className={cx("absolute -left-[21.5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-white dark:ring-slate-900", eventTone(e.type))} />
+              <span className={cx("absolute -left-[21.5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface", eventTone(e.type))} />
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">
                     {td(`event.${e.type}`)}
                     {e.toProductId && (
-                      <span className="font-normal text-slate-500">
+                      <span className="font-normal text-muted">
                         {" "}
                         {name(e.fromProductId)} → {name(e.toProductId)}
                       </span>
                     )}
                   </p>
-                  <p className="tabular text-xs text-slate-500">{e.date}</p>
-                  {e.note && <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{e.note}</p>}
+                  <p className="tabular text-xs text-muted">{e.date}</p>
+                  {e.note && <p className="mt-0.5 text-sm text-muted">{e.note}</p>}
                 </div>
-                <button className="text-xs text-slate-400 opacity-60 hover:text-rose-600 group-hover:opacity-100" onClick={() => confirm(t("common.confirmDelete")) && del.mutate(e.id)} aria-label={t("common.delete")}>
+                <button className="text-xs text-faint opacity-60 hover:text-danger group-hover:opacity-100" onClick={() => confirm(t("common.confirmDelete")) && del.mutate(e.id)} aria-label={t("common.delete")}>
                   ✕
                 </button>
               </div>
