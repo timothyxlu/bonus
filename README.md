@@ -1,11 +1,13 @@
 # bonus
 
-Personal rewards / bonus tracker on Cloudflare. Phase 1: credit cards — accounts, timeline,
+Personal bonus hunter on Cloudflare: credit card sign-up bonuses, bank account opening bonuses,
+gift card discounts and other rewards, all on one generic model. Phase 1: credit cards — accounts, timeline,
 sign-up bonus progress, recurring benefits, and an issuer-rules eligibility checker
 (Chase 5/24, Sapphire, Amex lifetime/family/limit, Citi 48-month & 1/8 & 2/65, BoA 2/3/4,
 Barclays 6/24). Web UI in Simplified Chinese, works on wide screens and phones (installable PWA),
 plus a remote MCP server for Claude. The data model is generic so bank-account bonuses and
-gift cards can be added later.
+gift cards can be added later. The icon is a drawn hunting bow with a rune-fletched gold arrow,
+a nod to Skaði, the Norse goddess of the hunt.
 
 | Wide | Phone |
 | --- | --- |

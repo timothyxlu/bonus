@@ -1,12 +1,12 @@
 {
-  "name": "Bonus - 奖励追踪",
+  "name": "Bonus - 开户奖励猎人",
   "short_name": "Bonus",
-  "description": "信用卡开户奖励与福利追踪",
+  "description": "信用卡、银行开户、礼品卡折扣等各类奖励的追踪与资格检查",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#eef2f1",
-  "theme_color": "#0f5465",
+  "background_color": "#0a2733",
+  "theme_color": "#0a2733",
   "lang": "zh-CN",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
