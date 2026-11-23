@@ -21,7 +21,7 @@ export function BonusProgress({ b, title }: { b: Bonus; title?: string }) {
               <>
                 {" → "}
                 <span className="font-medium text-ink">
-                  {fmtNum(b.rewardAmount)} {td(`unit.${b.rewardUnit}`)}
+                  {b.rewardUnit === "USD" ? fmtUsd(b.rewardAmount) : `${fmtNum(b.rewardAmount)} ${td(`unit.${b.rewardUnit}`)}`}
                 </span>
               </>
             )}

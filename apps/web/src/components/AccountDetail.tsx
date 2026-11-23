@@ -7,6 +7,7 @@ import { useAccount, useMutate, useProducts } from "../lib/queries";
 import type { AccountDetail as Detail, Benefit, Bonus } from "../lib/types";
 import { AccountForm, ProductSelect } from "./AccountForm";
 import { BonusProgress } from "./BonusRow";
+import { KindIcon } from "./KindIcon";
 import { Badge, Button, ErrorText, Field, Input, ProgressBar, Select, Sheet, Spinner, statusTone } from "./ui";
 
 export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: () => void }) {
@@ -39,28 +40,56 @@ export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: ()
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Badge tone={statusTone(data.status)}>{td(`status.${data.status}`)}</Badge>
-          <Badge>{td(`ownerType.${data.ownerType}`)}</Badge>
+          <Badge tone="indigo">
+            <KindIcon kind={data.kind} small />
+            {td(`kind.${data.kind}`)}
+          </Badge>
+          {data.kind !== "gift_card" && <Badge>{td(`ownerType.${data.ownerType}`)}</Badge>}
+          {data.kind === "bank_account" && typeof data.details?.accountType === "string" && <Badge>{td(`acct.accountType.${data.details.accountType}`)}</Badge>}
           {data.last4 && <Badge>••{data.last4}</Badge>}
           {data.isAuthorizedUser && <Badge tone="indigo">AU</Badge>}
           {data.annualFee !== null && <Badge>{t("acct.annualFee", { n: data.annualFee })}</Badge>}
           {data.currency && <Badge>{data.currency}</Badge>}
         </div>
-        <dl className="tabular mt-3 grid grid-cols-3 gap-2 text-xs">
-          <Meta label={t("acct.appliedAt")} value={data.appliedAt} />
-          <Meta label={t("acct.openedAt")} value={data.openedAt} />
-          <Meta label={t("acct.closedAt")} value={data.closedAt} />
-        </dl>
+        {data.kind === "gift_card" ? (
+          <GiftValue details={data.details} openedAt={data.openedAt} closedAt={data.closedAt} />
+        ) : (
+          <dl className="tabular mt-3 grid grid-cols-3 gap-2 text-xs">
+            <Meta label={t("acct.appliedAt")} value={data.appliedAt} />
+            <Meta label={t("acct.openedAt")} value={data.openedAt} />
+            <Meta label={t("acct.closedAt")} value={data.closedAt} />
+          </dl>
+        )}
         {data.notes && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{data.notes}</p>}
       </header>
 
       <BonusesSection account={data} />
-      <BenefitsSection account={data} />
+      {data.kind !== "gift_card" && <BenefitsSection account={data} />}
       <TimelineSection account={data} />
 
       <Sheet open={editing} onClose={() => setEditing(false)} title={t("acct.edit")} wide>
         <AccountForm initial={data} onDone={() => setEditing(false)} />
       </Sheet>
     </div>
+  );
+}
+
+function GiftValue({ details, openedAt, closedAt }: { details: Record<string, unknown>; openedAt: string | null; closedAt: string | null }) {
+  const face = Number(details?.faceValue);
+  const price = Number(details?.purchasePrice);
+  const hasFace = Number.isFinite(face) && face > 0;
+  const hasPrice = Number.isFinite(price) && price > 0;
+  const saved = hasFace && hasPrice ? face - price : null;
+  return (
+    <dl className="tabular mt-3 grid grid-cols-3 gap-2 text-xs">
+      <Meta label={t("acct.faceValue")} value={hasFace ? fmtUsd(face) : null} />
+      <Meta label={t("acct.purchasePrice")} value={hasPrice ? fmtUsd(price) : null} />
+      <Meta
+        label={saved !== null && hasFace ? t("acct.discount", { pct: Math.round((saved / face) * 100) }) : t("acct.openedAt.gift")}
+        value={saved !== null ? t("acct.saved", { n: saved }) : openedAt}
+      />
+      {closedAt && <Meta label={t("acct.closedAt.gift")} value={closedAt} />}
+    </dl>
   );
 }
 

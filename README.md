@@ -1,7 +1,8 @@
 # bonus
 
 Personal bonus hunter on Cloudflare: credit card sign-up bonuses, bank account opening bonuses,
-gift card discounts and other rewards, all on one generic model. Phase 1: credit cards — accounts, timeline,
+gift card discounts and other rewards, all on one generic model. The UI is organised around the hunt
+(every bonus in progress, whatever the category) with a panel per category. Phase 1 rules engine: credit cards — accounts, timeline,
 sign-up bonus progress, recurring benefits, and an issuer-rules eligibility checker
 (Chase 5/24, Sapphire, Amex lifetime/family/limit, Citi 48-month & 1/8 & 2/65, BoA 2/3/4,
 Barclays 6/24). Web UI in Simplified Chinese, works on wide screens and phones (installable PWA),
@@ -11,7 +12,7 @@ a nod to Skaði, the Norse goddess of the hunt.
 
 | Wide | Phone |
 | --- | --- |
-| ![wide](docs/screenshots/wide-accounts.png) | ![phone](docs/screenshots/phone-dashboard.png) |
+| ![wide](docs/screenshots/wide-dashboard.png) | ![phone](docs/screenshots/phone-dashboard.png) |
 
 *(Screenshots use fictional demo data from `examples/demo-history.json`.)*
 

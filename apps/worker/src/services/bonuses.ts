@@ -1,7 +1,7 @@
-import { benefitStatus, bonusProgress } from "@bonus/core";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { benefitStatus, bonusProgress, type AccountKind, type BonusStatus } from "@bonus/core";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { z } from "zod";
-import { accounts, benefits, benefitUses, bonuses, products } from "../db/schema";
+import { accounts, benefits, benefitUses, bonuses, institutions, products } from "../db/schema";
 import type { benefitInput, benefitPatch, benefitUseInput, bonusInput, bonusPatch } from "../schemas";
 import { accountLabel } from "./accounts";
 import { NotFoundError, newId, nowIso, type ServiceContext } from "./context";
@@ -45,24 +45,52 @@ export async function deleteBonus(ctx: ServiceContext, id: string) {
   return { deleted: id };
 }
 
-/** Active bonuses ordered by nearest deadline. */
-export async function upcomingDeadlines(ctx: ServiceContext, opts: { withinDays?: number; limit?: number } = {}) {
+export interface BonusFilter {
+  statuses?: BonusStatus[];
+  kind?: AccountKind;
+  limit?: number;
+}
+
+/** Bonuses across every account kind, with progress and the account they belong to. */
+export async function listBonuses(ctx: ServiceContext, filter: BonusFilter = {}) {
   const rows = await ctx.db
-    .select({ bonus: bonuses, account: accounts, productName: products.name })
+    .select({ bonus: bonuses, account: accounts, productName: products.name, institutionId: institutions.id, institutionName: institutions.name })
     .from(bonuses)
     .innerJoin(accounts, eq(bonuses.accountId, accounts.id))
     .leftJoin(products, eq(accounts.productId, products.id))
-    .where(and(eq(bonuses.ownerId, ctx.ownerId), inArray(bonuses.status, ["in_progress", "met"])))
-    .orderBy(asc(bonuses.deadline));
+    .leftJoin(institutions, eq(institutions.id, sql`coalesce(${products.institutionId}, ${accounts.institutionId})`))
+    .where(
+      and(
+        eq(bonuses.ownerId, ctx.ownerId),
+        filter.statuses?.length ? inArray(bonuses.status, filter.statuses) : undefined,
+        filter.kind ? eq(accounts.kind, filter.kind) : undefined,
+      ),
+    );
   return rows
     .map((r) => ({
       ...r.bonus,
       ...bonusProgress(r.bonus, ctx.today),
       accountLabel: accountLabel(r.account, r.productName),
       productName: r.productName,
+      kind: r.account.kind,
+      institutionId: r.institutionId,
+      institutionName: r.institutionName,
     }))
+    .sort((a, b) =>
+      a.active !== b.active
+        ? a.active ? -1 : 1
+        : a.active
+          ? (a.deadline ?? "9999-99-99").localeCompare(b.deadline ?? "9999-99-99")
+          : (b.earnedAt ?? b.updatedAt).localeCompare(a.earnedAt ?? a.updatedAt),
+    )
+    .slice(0, filter.limit ?? 500);
+}
+
+/** Active bonuses (any account kind) ordered by nearest deadline. */
+export async function upcomingDeadlines(ctx: ServiceContext, opts: { withinDays?: number; limit?: number; kind?: AccountKind } = {}) {
+  const rows = await listBonuses(ctx, { statuses: ["in_progress", "met"], kind: opts.kind });
+  return rows
     .filter((b) => opts.withinDays === undefined || (b.daysLeft !== null && b.daysLeft <= opts.withinDays))
-    .sort((a, b) => (a.deadline ?? "9999-99-99").localeCompare(b.deadline ?? "9999-99-99"))
     .slice(0, opts.limit ?? 100);
 }
 

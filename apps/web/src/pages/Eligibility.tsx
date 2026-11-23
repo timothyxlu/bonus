@@ -32,6 +32,7 @@ export function EligibilityPage() {
     <div className="grid grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="space-y-4">
         <Card title={t("elig.title")}>
+          <p className="-mt-1 mb-3 text-sm text-muted">{t("elig.cardsOnly")}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
             <Field label={t("elig.product")}>
               <ProductSelect value={productId} onChange={setProduct} products={cards} />

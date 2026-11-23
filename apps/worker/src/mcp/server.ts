@@ -112,9 +112,22 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   );
 
   server.registerTool(
+    "list_bonuses",
+    {
+      description: "List bonuses across all account kinds (credit card sign-up bonuses, bank account bonuses, gift card promos) with progress, filtered by status and/or kind.",
+      inputSchema: z.object({
+        status: z.array(z.enum(["in_progress", "met", "posted", "failed", "cancelled"])).optional(),
+        kind: z.enum(["credit_card", "bank_account", "gift_card"]).optional(),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    tool(async ({ status, kind }) => bon.listBonuses(svc(), { statuses: status, kind })),
+  );
+
+  server.registerTool(
     "upcoming_deadlines",
     {
-      description: "Active sign-up bonuses ordered by nearest deadline, with progress and days left.",
+      description: "Active bonuses of every kind (cards, bank accounts, gift cards) ordered by nearest deadline, with progress and days left.",
       inputSchema: z.object({ withinDays: z.number().int().min(0).optional() }),
       annotations: { readOnlyHint: true },
     },

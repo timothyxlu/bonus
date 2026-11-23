@@ -1,4 +1,4 @@
-import { today } from "@bonus/core";
+import { ACCOUNT_KINDS, BONUS_STATUSES, today } from "@bonus/core";
 import { Hono, type Context } from "hono";
 import { z, type ZodType } from "zod";
 import { AuthError, verifyAccessRequest, type Identity } from "../auth/access-jwt";
@@ -103,6 +103,13 @@ export function createApi() {
   api.delete("/events/:id", async (c) => c.json(await accounts.deleteEvent(c.var.svc, c.req.param("id"))));
 
   // Bonuses
+  api.get("/bonuses", async (c) => {
+    const q = z
+      .object({ status: z.array(z.enum(BONUS_STATUSES)).optional(), kind: z.enum(ACCOUNT_KINDS).optional() })
+      .safeParse({ status: c.req.query("status")?.split(","), kind: c.req.query("kind") });
+    if (!q.success) throw new BadRequestError("Invalid status or kind filter");
+    return c.json(await bon.listBonuses(c.var.svc, { statuses: q.data.status, kind: q.data.kind }));
+  });
   api.get("/bonuses/upcoming", async (c) => {
     const within = c.req.query("withinDays");
     return c.json(await bon.upcomingDeadlines(c.var.svc, { withinDays: within ? Number(within) : undefined }));

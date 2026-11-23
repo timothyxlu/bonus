@@ -119,6 +119,40 @@ describe("REST API", () => {
     expect(csv.body.errors).toHaveLength(1);
   });
 
+  it("treats bank accounts and gift cards as first-class bonus sources", async () => {
+    const inst = await call("POST", "/institutions", { name: "Example Credit Union", type: "bank" });
+    expect(inst.status).toBe(201);
+    const bank = await call("POST", "/accounts", {
+      kind: "bank_account",
+      institutionId: inst.body.id,
+      nickname: "Checking",
+      openedAt: "2026-10-01",
+      details: { accountType: "checking" },
+    });
+    expect(bank.status).toBe(201);
+    const year = new Date().toISOString().slice(0, 4);
+    await call("POST", `/accounts/${bank.body.id}/bonuses`, { requirementType: "direct_deposit", amountRequired: 500, deadline: "2099-01-01", rewardAmount: 300, rewardUnit: "USD" });
+    await call("POST", `/accounts/${bank.body.id}/bonuses`, { requirementType: "balance", rewardAmount: 200, rewardUnit: "USD", status: "posted", earnedAt: `${year}-01-15` });
+
+    const gift = await call("POST", "/institutions", { name: "Example Grocer", type: "merchant" });
+    const gc = await call("POST", "/accounts", { kind: "gift_card", institutionId: gift.body.id, nickname: "Grocer $100", details: { faceValue: 100, purchasePrice: 85 } });
+    expect(gc.status).toBe(201);
+
+    const dash = await call("GET", "/dashboard");
+    expect(dash.body.byKind.bank_account).toMatchObject({ open: 1, activeBonuses: 1, postedThisYear: 1 });
+    expect(dash.body.byKind.gift_card).toMatchObject({ open: 1, faceValue: 100, saved: 15 });
+    expect(dash.body.byKind.gift_card.avgDiscount).toBeCloseTo(0.15);
+    expect(dash.body.rewards.earnedThisYear.USD).toBeGreaterThanOrEqual(200);
+    expect(dash.body.rewards.pending.USD).toBeGreaterThanOrEqual(300);
+    expect(dash.body.deadlines.some((d: any) => d.kind === "bank_account" && d.institutionName === "Example Credit Union")).toBe(true);
+
+    const bankOnly = await call("GET", "/bonuses?kind=bank_account");
+    expect(bankOnly.body).toHaveLength(2);
+    expect(bankOnly.body[0].active).toBe(true); // active first
+    expect((await call("GET", "/bonuses?status=posted&kind=bank_account")).body).toHaveLength(1);
+    expect((await call("GET", "/bonuses?status=bogus")).status).toBe(400);
+  });
+
   it("keeps data per owner", async () => {
     const res = await (exports as any).default.fetch(new Request(`${BASE}/accounts`));
     const mine = (await res.json()) as any[];

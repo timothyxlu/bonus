@@ -108,6 +108,7 @@ export interface AccountSummary {
   closedAt: string | null;
   isAuthorizedUser: boolean;
   notes: string | null;
+  details: Record<string, unknown>;
   family: string | null;
   annualFee: number | null;
   network: string | null;
@@ -127,6 +128,23 @@ export interface AccountDetail extends AccountSummary {
 export interface UpcomingBonus extends Bonus {
   accountLabel: string;
   productName: string | null;
+  kind: AccountKind;
+  institutionId: string | null;
+  institutionName: string | null;
+  updatedAt: string;
+}
+
+export type UnitTotals = Partial<Record<RewardUnit, number>>;
+
+export interface KindStats {
+  total: number;
+  open: number;
+  activeBonuses: number;
+  postedThisYear: number;
+  annualFees?: number;
+  faceValue?: number;
+  saved?: number;
+  avgDiscount?: number | null;
 }
 
 export interface Dashboard {
@@ -134,6 +152,8 @@ export interface Dashboard {
   five24: X24Status;
   deadlines: UpcomingBonus[];
   unusedBenefits: Benefit[];
+  rewards: { earnedThisYear: UnitTotals; pending: UnitTotals; activeCount: number; year: string };
+  byKind: Record<AccountKind, KindStats>;
   stats: { openAccounts: number; totalAccounts: number; annualFees: number; activeBonuses: number };
 }
 

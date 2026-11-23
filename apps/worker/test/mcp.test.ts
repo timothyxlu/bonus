@@ -34,7 +34,7 @@ describe("MCP server", () => {
     const r = await rpc("tools/list", {});
     const names = r.result.tools.map((t: any) => t.name).sort();
     expect(names).toEqual(
-      ["add_account", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_products", "mark_benefit_used", "record_event", "upcoming_deadlines"].sort(),
+      ["add_account", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "record_event", "upcoming_deadlines"].sort(),
     );
   });
 

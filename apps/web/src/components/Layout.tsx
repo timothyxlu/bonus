@@ -2,15 +2,20 @@ import type { ReactNode } from "react";
 import { t, type MessageKey } from "../i18n";
 import { cx } from "../lib/format";
 import { Link, useRouter } from "../lib/router";
-import { IconCards, IconCheck, IconCog, IconGift, IconHome } from "./icons";
+import { IconCards, IconCheck, IconCog, IconGift, IconHome, IconMore, IconTarget } from "./icons";
 
-const NAV: { to: string; key: MessageKey; icon: (p: { small?: boolean }) => ReactNode }[] = [
+type NavItem = { to: string; key: MessageKey; icon: (p: { small?: boolean }) => ReactNode };
+const NAV: NavItem[] = [
   { to: "/", key: "nav.dashboard", icon: IconHome },
+  { to: "/bonuses", key: "nav.bonuses", icon: IconTarget },
   { to: "/accounts", key: "nav.accounts", icon: IconCards },
   { to: "/benefits", key: "nav.benefits", icon: IconGift },
   { to: "/eligibility", key: "nav.eligibility", icon: IconCheck },
   { to: "/settings", key: "nav.settings", icon: IconCog },
 ];
+/** Phone tab bar: at most five; the rest live under 更多. */
+const TABS: NavItem[] = [...NAV.slice(0, 4), { to: "/more", key: "nav.more", icon: IconMore }];
+const MORE_PATHS = ["/more", "/eligibility", "/settings"];
 
 const isActive = (path: string, to: string) => (to === "/" ? path === "/" : path === to || path.startsWith(`${to}/`));
 
@@ -49,20 +54,20 @@ export function Layout({ children }: { children: ReactNode }) {
         {/* Phone: compact header */}
         <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-line bg-surface/90 px-4 py-3 backdrop-blur lg:hidden">
           <img src="/icon.svg" alt="" className="h-7 w-7" />
-          <p className="font-semibold">{t(NAV.find((n) => isActive(path, n.to))?.key ?? "nav.dashboard")}</p>
+          <p className="font-semibold">{t([...NAV, ...TABS].find((n) => isActive(path, n.to))?.key ?? "nav.dashboard")}</p>
         </header>
         <main className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-4 lg:px-8 lg:pb-8 lg:pt-6">{children}</main>
       </div>
 
       {/* Phone: bottom tab bar */}
       <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 backdrop-blur lg:hidden">
-        {NAV.map((n) => (
+        {TABS.map((n) => (
           <Link
             key={n.to}
             to={n.to}
             className={cx(
               "flex min-h-14 flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-medium",
-              isActive(path, n.to) ? "text-brand" : "text-muted",
+              (n.to === "/more" ? MORE_PATHS.some((p) => isActive(path, p)) : isActive(path, n.to)) ? "text-brand" : "text-muted",
             )}
           >
             <n.icon />
