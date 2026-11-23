@@ -21,10 +21,11 @@ One Cloudflare Worker at `bonus.timothyxlu.xyz`:
                     ┌──────────── Cloudflare Access (GitHub login) ────────────┐
 browser ──────────► │  /*  static SPA (Workers Static Assets)                    │
                     │  /api/*  Hono REST API ── verifies Cf-Access-Jwt-Assertion │
+                    │  /authorize  MCP consent page ── same JWT check, then      │
+                    │              issues OAuth code bound to the Access email   │
                     └───────────────────────────────────────────────────────────┘
 Claude ──(bypass)─► /mcp  Streamable HTTP MCP ── OAuth 2.1 (workers-oauth-provider)
-                    /authorize /callback /token /register /.well-known/*
-                          └── upstream login: Access for SaaS (OIDC) → GitHub
+                    /token /register /.well-known/*
                                    │
             services (apps/worker/src/services) ── D1 (Drizzle) · KV (OAuth state)
                                    │
@@ -47,7 +48,8 @@ Notes:
   `check_eligibility`, `five_24_status` (+ `list_products` to discover product ids).
 - **Auth**: `/api` verifies the Access JWT in the Worker (signature/issuer/audience/expiry) and scopes
   every query by the user's email (`owner_id`). MCP tokens carry the same email, so web and MCP see the
-  same data. Optional `ALLOWED_EMAILS` allowlist on top of Access policies.
+  same data: `/authorize` sits behind Access, verifies the Access JWT and only asks for consent
+  (no upstream IdP). Optional `ALLOWED_EMAILS` allowlist on top of Access policies.
 - **Privacy**: only the last 4 digits are accepted (validated in the API and by a DB `CHECK`).
   The repo contains only a generic product catalog; real history is imported through the app.
 

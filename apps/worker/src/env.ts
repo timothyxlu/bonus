@@ -12,16 +12,8 @@ export interface Env {
   ACCESS_TEAM_DOMAIN?: string;
   /** Application Audience (AUD) tag of the self-hosted Access application. */
   ACCESS_AUD?: string;
-  /** Optional comma-separated allowlist of emails (defense in depth on top of Access policies). */
+  /** Optional comma-separated allowlist of emails, checked for /api and /authorize (on top of Access policies). */
   ALLOWED_EMAILS?: string;
-
-  /** Access for SaaS (OIDC) app used as the upstream IdP for MCP OAuth. */
-  ACCESS_CLIENT_ID?: string;
-  ACCESS_CLIENT_SECRET?: string;
-  ACCESS_TOKEN_URL?: string;
-  ACCESS_AUTHORIZATION_URL?: string;
-  ACCESS_JWKS_URL?: string;
-  COOKIE_ENCRYPTION_KEY?: string;
 
   /**
    * Local development only: identity used when the request host is localhost.
@@ -34,7 +26,6 @@ export interface Env {
 
 /** Props stored in the MCP OAuth grant (available via getMcpAuthContext()). */
 export interface McpProps extends Record<string, unknown> {
+  /** Owner email from the Cloudflare Access identity that approved the client. */
   email: string;
-  name?: string;
-  sub?: string;
 }

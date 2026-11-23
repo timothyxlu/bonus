@@ -23,7 +23,6 @@
       "/mcp",
       "/mcp/*",
       "/authorize",
-      "/callback",
       "/token",
       "/register",
       "/.well-known/*"
