@@ -1,0 +1,13 @@
+# Copy to .dev.vars for local development (git-ignored).
+# Local requests to localhost are authenticated as this user (ignored on any other host).
+DEV_USER_EMAIL=dev@example.com
+MCP_RESOURCE=http://localhost:8787/mcp
+
+# Optional: to test the MCP OAuth flow locally, create an Access for SaaS OIDC app with
+# redirect URL http://localhost:8787/callback and fill these in (see docs/SETUP.md).
+# ACCESS_CLIENT_ID=
+# ACCESS_CLIENT_SECRET=
+# ACCESS_TOKEN_URL=
+# ACCESS_AUTHORIZATION_URL=
+# ACCESS_JWKS_URL=
+# COOKIE_ENCRYPTION_KEY=

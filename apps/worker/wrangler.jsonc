@@ -1,0 +1,51 @@
+/**
+ * Wrangler configuration for bonus.timothyxlu.xyz.
+ * Resource IDs below are placeholders; CI (scripts/ensure-cf-resources.mjs) looks up
+ * or creates the D1 database / KV namespace by name and fills them in before deploying.
+ * Secrets are set with `wrangler secret put` - see docs/SETUP.md.
+ */
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "bonus",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "routes": [{ "pattern": "bonus.timothyxlu.xyz", "custom_domain": true }],
+  // Only reachable through the custom domain (which sits behind Cloudflare Access).
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "/mcp",
+      "/mcp/*",
+      "/authorize",
+      "/callback",
+      "/token",
+      "/register",
+      "/.well-known/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bonus",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "vars": {
+    "MCP_RESOURCE": "https://bonus.timothyxlu.xyz/mcp"
+  },
+  "observability": { "enabled": true },
+  "dev": { "port": 8787, "host": "localhost:8787" }
+}

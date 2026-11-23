@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "_comment": "FICTIONAL demo data for local development and screenshots. Not anyone's real history.",
+  "accounts": [
+    {
+      "product": "chase-sapphire-preferred", "last4": "0001", "appliedAt": "2025-05-28", "openedAt": "2025-06-01", "status": "open",
+      "bonuses": [{ "description": "75k after $5k in 3 months", "amountRequired": 5000, "progress": 5000, "deadline": "2025-09-01", "rewardAmount": 75000, "rewardUnit": "points", "status": "posted", "earnedAt": "2025-08-10" }],
+      "benefits": [{ "name": "DoorDash 月度抵扣", "amount": 10, "period": "monthly" }, { "name": "酒店年度抵扣", "amount": 50, "period": "cardmember_year" }]
+    },
+    {
+      "product": "amex-gold", "last4": "0002", "openedAt": "2026-09-20", "status": "open",
+      "bonuses": [{ "description": "60k after $6k in 6 months", "amountRequired": 6000, "progress": 2350, "deadline": "2027-03-20", "rewardAmount": 60000, "rewardUnit": "points" }],
+      "benefits": [{ "name": "Uber Cash", "amount": 10, "period": "monthly" }, { "name": "Dining credit", "amount": 10, "period": "monthly" }, { "name": "Resy credit", "amount": 50, "period": "semiannual" }]
+    },
+    {
+      "product": "chase-ink-preferred", "nickname": "Ink 商业卡", "last4": "0003", "openedAt": "2026-10-15", "status": "open",
+      "bonuses": [{ "description": "90k after $8k in 3 months", "amountRequired": 8000, "progress": 6100, "deadline": "2026-12-05", "rewardAmount": 90000, "rewardUnit": "points" }]
+    },
+    {
+      "product": "citi-strata-premier", "last4": "0004", "openedAt": "2025-02-10", "status": "open",
+      "bonuses": [{ "amountRequired": 4000, "progress": 4000, "rewardAmount": 60000, "rewardUnit": "points", "status": "posted", "earnedAt": "2025-04-02" }]
+    },
+    { "product": "capital-one-venture-x", "last4": "0005", "openedAt": "2025-11-02", "status": "open",
+      "benefits": [{ "name": "Travel credit", "amount": 300, "period": "cardmember_year" }] },
+    { "product": "discover-it-cash-back", "last4": "0006", "openedAt": "2024-12-15", "status": "open" },
+    { "product": "boa-customized-cash", "last4": "0007", "openedAt": "2026-03-08", "status": "open",
+      "bonuses": [{ "amountRequired": 1000, "progress": 1000, "rewardAmount": 200, "rewardUnit": "USD", "status": "posted", "earnedAt": "2026-05-01" }] },
+    { "product": "chase-freedom-unlimited", "last4": "0008", "openedAt": "2021-04-01", "closedAt": "2024-01-15", "status": "closed" },
+    { "product": "amex-platinum", "last4": "0009", "openedAt": "2026-11-10", "status": "open",
+      "bonuses": [{ "description": "Welcome offer", "amountRequired": 8000, "progress": 900, "deadline": "2027-05-10", "rewardAmount": 125000, "rewardUnit": "points" }],
+      "benefits": [{ "name": "Uber Cash", "amount": 15, "period": "monthly" }, { "name": "Airline fee credit", "amount": 200, "period": "annual" }] }
+  ]
+}

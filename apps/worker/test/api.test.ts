@@ -1,0 +1,127 @@
+import { exports } from "cloudflare:workers";
+import { describe, expect, it } from "vitest";
+
+const BASE = "http://localhost/api";
+const call = async (method: string, path: string, body?: unknown, headers: Record<string, string> = {}) => {
+  const res = await (exports as any).default.fetch(
+    new Request(`${BASE}${path}`, {
+      method,
+      headers: body !== undefined ? { "Content-Type": "application/json", ...headers } : headers,
+      body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
+    }),
+  );
+  const text = await res.text();
+  return { status: res.status, body: text ? JSON.parse(text) : null };
+};
+
+describe("REST API", () => {
+  it("health is public", async () => {
+    expect((await call("GET", "/health")).body).toEqual({ ok: true });
+  });
+
+  it("rejects non-local requests without a Cloudflare Access token", async () => {
+    const res = await (exports as any).default.fetch(new Request("https://bonus.example.com/api/accounts"));
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a forged Access token", async () => {
+    const res = await (exports as any).default.fetch(
+      new Request("https://bonus.example.com/api/accounts", { headers: { "Cf-Access-Jwt-Assertion": "a.b.c" } }),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("seeds the catalog on first use", async () => {
+    const r = await call("GET", "/products");
+    expect(r.status).toBe(200);
+    expect(r.body.some((p: any) => p.id === "chase-sapphire-reserve")).toBe(true);
+  });
+
+  it("refuses full card numbers", async () => {
+    const r = await call("POST", "/accounts", { productId: "amex-gold", last4: "4111111111111111" });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/last4/);
+  });
+
+  it("CRUD: account, events, bonus, benefit; dashboard and eligibility reflect it", async () => {
+    const created = await call("POST", "/accounts", { productId: "chase-sapphire-preferred", last4: "0001", appliedAt: "2025-05-28", openedAt: "2025-06-01" });
+    expect(created.status).toBe(201);
+    const id = created.body.id;
+    expect(created.body.events.map((e: any) => e.type).sort()).toEqual(["applied", "approved"]);
+    expect(created.body.ownerType).toBe("personal");
+
+    const bonus = await call("POST", `/accounts/${id}/bonuses`, { amountRequired: 5000, progress: 1000, deadline: "2099-01-01", rewardAmount: 75000 });
+    expect(bonus.status).toBe(201);
+    const ben = await call("POST", `/accounts/${id}/benefits`, { name: "DoorDash", amount: 10, period: "monthly" });
+    expect(ben.status).toBe(201);
+
+    let detail = await call("GET", `/accounts/${id}`);
+    expect(detail.body.unusedBenefits).toBe(1);
+    expect(detail.body.activeBonus.ratio).toBeCloseTo(0.2);
+
+    const today = new Date().toISOString().slice(0, 10);
+    expect((await call("POST", `/benefits/${ben.body.id}/uses`, { usedOn: today })).status).toBe(201);
+    detail = await call("GET", `/accounts/${id}`);
+    expect(detail.body.unusedBenefits).toBe(0);
+    expect(detail.body.benefits[0].used).toBe(10);
+
+    // Holding a Sapphire blocks another Sapphire.
+    const elig = await call("GET", "/eligibility/chase-sapphire-reserve");
+    expect(elig.body.status).toBe("blocked");
+    expect(elig.body.reasons.some((r: any) => r.rule === "chase_sapphire_holding")).toBe(true);
+
+    const dash = await call("GET", "/dashboard");
+    expect(dash.status).toBe(200);
+    expect(dash.body.five24.count).toBeGreaterThanOrEqual(1);
+    expect(dash.body.deadlines.length).toBeGreaterThanOrEqual(1);
+
+    // bonus_earned posts the bonus; product change moves it out of the Sapphire family.
+    expect((await call("POST", `/accounts/${id}/events`, { type: "bonus_earned", date: "2025-08-10" })).status).toBe(201);
+    expect((await call("POST", `/accounts/${id}/events`, { type: "product_change", date: "2026-07-01", toProductId: "chase-freedom-unlimited" })).status).toBe(201);
+    detail = await call("GET", `/accounts/${id}`);
+    expect(detail.body.productId).toBe("chase-freedom-unlimited");
+    expect(detail.body.bonuses[0].status).toBe("posted");
+
+    const after = await call("GET", "/eligibility/chase-sapphire-reserve");
+    expect(after.body.reasons.some((r: any) => r.rule === "chase_sapphire_holding")).toBe(false);
+    expect(after.body.reasons.find((r: any) => r.rule === "chase_sapphire_48")?.eligibleFrom).toBe("2029-08-10");
+
+    expect((await call("POST", `/accounts/${id}/events`, { type: "closed", date: "2026-10-01" })).status).toBe(201);
+    expect((await call("GET", `/accounts/${id}`)).body.status).toBe("closed");
+
+    expect((await call("DELETE", `/accounts/${id}`)).status).toBe(200);
+    expect((await call("GET", `/accounts/${id}`)).status).toBe(404);
+  });
+
+  it("imports JSON (with dry run and duplicate detection) and CSV", async () => {
+    const payload = {
+      version: 1,
+      accounts: [
+        { product: "Citi Strata Premier", last4: "0004", openedAt: "2025-02-10", bonuses: [{ status: "posted", earnedAt: "2025-04-02" }] },
+        { product: "Unknown Credit Union Card", issuer: "Example CU", openedAt: "2024-01-01" },
+        { product: "nope" },
+      ],
+    };
+    const dry = await call("POST", "/import?dryRun=1", payload);
+    expect(dry.body).toMatchObject({ dryRun: true, created: 2 });
+    expect(dry.body.errors).toHaveLength(1);
+    const real = await call("POST", "/import", payload);
+    expect(real.body.created).toBe(2);
+    const again = await call("POST", "/import", payload);
+    expect(again.body.created).toBe(0);
+    expect(again.body.skipped).toHaveLength(2);
+
+    const elig = await call("GET", "/eligibility/citi-strata-premier");
+    expect(elig.body.status).toBe("blocked");
+
+    const csv = await call("POST", "/import", "product,last4,opened_at,bonus_earned_at\n\"Amex Gold\",0002,2026-09-20,\namex-platinum,0009,2026-11-10,\n", { "Content-Type": "text/csv" });
+    expect(csv.body.created).toBe(1); // "Amex Gold" name does not match "American Express Gold"
+    expect(csv.body.errors).toHaveLength(1);
+  });
+
+  it("keeps data per owner", async () => {
+    const res = await (exports as any).default.fetch(new Request(`${BASE}/accounts`));
+    const mine = (await res.json()) as any[];
+    expect(mine.every((a) => a.ownerId === "tester@example.com")).toBe(true);
+  });
+});
