@@ -1,5 +1,5 @@
 import { ACCOUNT_KINDS, BONUS_REQUIREMENT_TYPES, REWARD_UNITS, type AccountKind, type BonusRequirementType, type OfferStep } from "@bonus/core";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ProductSelect } from "../components/AccountForm";
 import { IconExternal, IconPlus } from "../components/icons";
 import { KindFilter } from "../components/KindFilter";
@@ -24,6 +24,28 @@ export function OpportunitiesPage() {
   const [sort, setSort] = useState<SortKey>("net");
   const [editing, setEditing] = useState<Opportunity | "new" | null>(null);
   const [claiming, setClaiming] = useState<Opportunity | null>(null);
+  const { query, navigate } = useRouter();
+  const focusId = query.get("focus");
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+
+  // Arriving from the dashboard (?focus=<offerId>): scroll to that offer and flash it once.
+  useEffect(() => {
+    if (!focusId || isLoading) return;
+    const el = document.getElementById(`opp-${focusId}`);
+    if (el) {
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      el.focus({ preventScroll: true });
+      setHighlighted(focusId);
+    }
+    // Drop the parameter so a reload or later filter change does not jump again.
+    navigate("/opportunities", { replace: true });
+  }, [focusId, isLoading, navigate]);
+  useEffect(() => {
+    if (!highlighted) return;
+    const timer = window.setTimeout(() => setHighlighted(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [highlighted]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: data.length };
@@ -93,7 +115,7 @@ export function OpportunitiesPage() {
       ) : (
         <ol className="space-y-2">
           {rows.map((o, i) => (
-            <OpportunityRow key={o.id} o={o} rank={i + 1} onEdit={() => setEditing(o)} onClaim={() => setClaiming(o)} />
+            <OpportunityRow key={o.id} o={o} rank={i + 1} highlighted={highlighted === o.id} onEdit={() => setEditing(o)} onClaim={() => setClaiming(o)} />
           ))}
         </ol>
       )}
@@ -124,16 +146,19 @@ function stepText(s: OfferStep) {
     .join("，");
 }
 
-function OpportunityRow({ o, rank, onEdit, onClaim }: { o: Opportunity; rank: number; onEdit: () => void; onClaim: () => void }) {
+function OpportunityRow({ o, rank, highlighted, onEdit, onClaim }: { o: Opportunity; rank: number; highlighted?: boolean; onEdit: () => void; onClaim: () => void }) {
   const [open, setOpen] = useState(false);
   const archive = useMutate(() => api.patch(`/offers/${o.id}`, { status: o.status === "active" ? "archived" : "active" }));
   const blocked = o.eligibility.status === "blocked";
   const roi = o.value.returnOnRequired;
   return (
     <li
+      id={`opp-${o.id}`}
+      tabIndex={-1}
       className={cx(
-        "rounded-[var(--radius-panel)] border border-line bg-surface p-4 sm:p-5",
+        "scroll-mt-24 rounded-[var(--radius-panel)] border border-line bg-surface p-4 outline-none transition-shadow duration-500 sm:p-5",
         (blocked || o.status === "archived") && "bg-sunken",
+        highlighted && "border-brand ring-2 ring-brand",
       )}
     >
       <div className="grid gap-x-6 gap-y-3 lg:grid-cols-[2rem_minmax(0,2.2fr)_minmax(7rem,1fr)_minmax(0,1.4fr)_minmax(9rem,1fr)] lg:items-center">
