@@ -2,7 +2,7 @@ import { ACCOUNT_KINDS, ACCOUNT_STATUSES, OWNER_TYPES, type AccountKind } from "
 import { useMemo, useState, type FormEvent } from "react";
 import { t, td } from "../i18n";
 import { api } from "../lib/api";
-import { institutionMessageKey, institutionsForAccountKind } from "../lib/accountForm";
+import { giftSecretPayload, institutionMessageKey, institutionsForAccountKind } from "../lib/accountForm";
 import { useInstitutions, useMutate, useProducts } from "../lib/queries";
 import { cx } from "../lib/format";
 import { KIND_META } from "../lib/kinds";
@@ -62,6 +62,8 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
     accountType: (initial?.details?.accountType as string) ?? "checking",
     faceValue: initial?.details?.faceValue !== undefined ? String(initial.details.faceValue) : "",
     purchasePrice: initial?.details?.purchasePrice !== undefined ? String(initial.details.purchasePrice) : "",
+    giftNumber: "",
+    giftPin: "",
   }));
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
   const meta = KIND_META[f.kind];
@@ -117,7 +119,19 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
       details,
       notes: f.notes || null,
     };
-    return initial ? api.patch<{ id: string }>(`/accounts/${initial.id}`, body) : api.post<{ id: string }>("/accounts", body);
+    if (initial) return api.patch<{ id: string }>(`/accounts/${initial.id}`, body);
+    const account = await api.post<{ id: string }>("/accounts", body);
+    const secret = f.kind === "gift_card" ? giftSecretPayload(f.giftNumber, f.giftPin) : {};
+    if (Object.keys(secret).length > 0) {
+      try {
+        await api.put(`/accounts/${account.id}/secret`, secret);
+      } catch (error) {
+        // Avoid leaving a half-created account when its requested secret could not be saved.
+        await api.del(`/accounts/${account.id}`).catch(() => undefined);
+        throw error;
+      }
+    }
+    return account;
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -190,9 +204,44 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
           required={custom}
         />
       </Field>
-      <Field label={t(meta.last4 ?? "acct.last4")} hint={t(meta.last4Hint ?? "acct.last4Hint")}>
-        <Input value={f.last4} onChange={set("last4")} inputMode="numeric" pattern="\d{4,5}" maxLength={5} placeholder="1234" autoComplete="off" />
-      </Field>
+      {(!gift || initial) && (
+        <Field label={t(meta.last4 ?? "acct.last4")} hint={t(meta.last4Hint ?? "acct.last4Hint")}>
+          <Input value={f.last4} onChange={set("last4")} inputMode="numeric" pattern="\d{4,5}" maxLength={5} placeholder="1234" autoComplete="off" />
+        </Field>
+      )}
+
+      {gift && !initial && (
+        <>
+          <Field label={t("sec.number")} className="sm:col-span-2">
+            <Input
+              value={f.giftNumber}
+              onChange={set("giftNumber")}
+              maxLength={40}
+              required={f.giftPin !== ""}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-1p-ignore
+              data-lpignore="true"
+            />
+          </Field>
+          <Field label={t("sec.pin")}>
+            <Input
+              value={f.giftPin}
+              onChange={set("giftPin")}
+              maxLength={16}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-1p-ignore
+              data-lpignore="true"
+            />
+          </Field>
+          <p className="self-end text-xs text-muted sm:pb-3">{t("sec.encrypted")}</p>
+        </>
+      )}
 
       {f.kind === "bank_account" && (
         <Field label={t("acct.accountType")}>

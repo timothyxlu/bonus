@@ -1,7 +1,7 @@
 import { CATALOG_PRODUCTS, checkEligibility, type HistoryAccount } from "@bonus/core";
 import { describe, expect, it } from "vitest";
 import { ruleMessage, t } from "../src/i18n";
-import { accountCreationMessageKey, institutionMessageKey, institutionsForAccountKind } from "../src/lib/accountForm";
+import { accountCreationMessageKey, giftSecretPayload, institutionMessageKey, institutionsForAccountKind } from "../src/lib/accountForm";
 import type { Institution } from "../src/lib/types";
 
 describe("i18n", () => {
@@ -23,6 +23,11 @@ describe("i18n", () => {
     expect(institutionsForAccountKind(institutions, "gift_card").map((institution) => institution.id)).toEqual(["merchant"]);
     expect(institutionsForAccountKind(institutions, "credit_card")).toEqual(institutions);
     expect(institutionsForAccountKind(institutions, "bank_account")).toEqual(institutions);
+  });
+
+  it("builds an optional gift-card secret without retaining blank fields", () => {
+    expect(giftSecretPayload(" GIFT-1234 ", " 9876 ")).toEqual({ number: "GIFT-1234", pin: "9876" });
+    expect(giftSecretPayload("", "")).toEqual({});
   });
 
   it("interpolates params", () => {
