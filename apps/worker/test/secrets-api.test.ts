@@ -37,6 +37,21 @@ const noSecrets = (label: string, text: string) => {
   }
 };
 
+const invalidAssertionFor = (challenge: string, credentialId: string) => {
+  const clientDataJSON = btoa(JSON.stringify({ type: "webauthn.get", challenge, origin: "http://localhost" }))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+  return {
+    id: credentialId,
+    rawId: credentialId,
+    type: "public-key",
+    clientExtensionResults: {},
+    authenticatorAttachment: "platform",
+    response: { authenticatorData: "", clientDataJSON, signature: "", userHandle: null },
+  };
+};
+
 let cardId = "";
 let giftId = "";
 
@@ -93,7 +108,7 @@ describe("account secrets (web only)", () => {
     expect(registration.body.authenticatorSelection).toMatchObject({ authenticatorAttachment: "platform", residentKey: "required", userVerification: "required" });
     expect(registration.body.challenge).toEqual(expect.any(String));
 
-    const invalidRegistration = await call("POST", "/webauthn/register/verify", { id: "not-a-credential" });
+    const invalidRegistration = await call("POST", "/webauthn/register/verify", invalidAssertionFor(registration.body.challenge, "not-a-credential"));
     expect(invalidRegistration.status).toBe(400);
     expect((await call("GET", "/webauthn/status")).body.configured).toBe(false);
 
@@ -111,6 +126,42 @@ describe("account secrets (web only)", () => {
     noSecrets("audit", JSON.stringify(auditRows.results));
     const actions = auditRows.results.map((r: any) => r.action);
     expect(actions).toContain("write");
+  });
+
+  it("keeps concurrent account-bound challenges independent and one-use", async () => {
+    const credentialId = "dGVzdC1jcmVkZW50aWFs";
+    await DB.prepare(
+      "INSERT INTO webauthn_credentials (id, owner_id, public_key, counter, transports, device_type, backed_up) VALUES (?, ?, ?, 0, '[]', 'singleDevice', 0)",
+    )
+      .bind(credentialId, "tester@example.com", "AA")
+      .run();
+
+    const first = await call("POST", `/accounts/${cardId}/secret/reveal/options`);
+    const second = await call("POST", `/accounts/${giftId}/secret/reveal/options`);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await DB.prepare("SELECT count(*) AS n FROM webauthn_challenges WHERE owner_id = ?").bind("tester@example.com").first("n")).toBe(2);
+
+    const wrongAccount = await call("POST", `/accounts/${giftId}/secret/reveal`, invalidAssertionFor(first.body.challenge, credentialId));
+    expect(wrongAccount.status).toBe(400);
+    expect(wrongAccount.body.code).toBe("webauthn_challenge_invalid");
+    expect(await DB.prepare("SELECT count(*) AS n FROM webauthn_challenges WHERE owner_id = ?").bind("tester@example.com").first("n")).toBe(2);
+
+    const firstVerify = await call("POST", `/accounts/${cardId}/secret/reveal`, invalidAssertionFor(first.body.challenge, credentialId));
+    expect(firstVerify.status).toBe(400);
+    expect(firstVerify.body.error).toBe("Device verification failed");
+    expect(await DB.prepare("SELECT count(*) AS n FROM webauthn_challenges WHERE owner_id = ?").bind("tester@example.com").first("n")).toBe(1);
+
+    const replay = await call("POST", `/accounts/${cardId}/secret/reveal`, invalidAssertionFor(first.body.challenge, credentialId));
+    expect(replay.status).toBe(400);
+    expect(replay.body.code).toBe("webauthn_challenge_invalid");
+    expect(await DB.prepare("SELECT count(*) AS n FROM webauthn_challenges WHERE owner_id = ?").bind("tester@example.com").first("n")).toBe(1);
+
+    const secondVerify = await call("POST", `/accounts/${giftId}/secret/reveal`, invalidAssertionFor(second.body.challenge, credentialId));
+    expect(secondVerify.status).toBe(400);
+    expect(secondVerify.body.error).toBe("Device verification failed");
+    expect(await DB.prepare("SELECT count(*) AS n FROM webauthn_challenges WHERE owner_id = ?").bind("tester@example.com").first("n")).toBe(0);
+    await DB.prepare("DELETE FROM webauthn_credentials WHERE id = ?").bind(credentialId).run();
   });
 
   it("ciphertext cannot be swapped between accounts", async () => {

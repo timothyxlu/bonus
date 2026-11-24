@@ -7,7 +7,7 @@ import {
   type RegistrationResponseJSON,
 } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, isNull, lte } from "drizzle-orm";
 import { accounts, webauthnChallenges, webauthnCredentials } from "../db/schema";
 import { BadRequestError, NotFoundError, nowIso, type ServiceContext } from "./context";
 import { revealSecret } from "./secrets";
@@ -22,6 +22,13 @@ export class BiometricNotConfiguredError extends Error {
   constructor() {
     super("Set up device verification before revealing sensitive information");
     this.name = "BiometricNotConfiguredError";
+  }
+}
+
+export class WebAuthnChallengeError extends BadRequestError {
+  constructor() {
+    super("WebAuthn challenge is missing, expired, or does not match this request");
+    this.name = "WebAuthnChallengeError";
   }
 }
 
@@ -42,19 +49,45 @@ async function credentialsFor(ctx: ServiceContext) {
 }
 
 async function saveChallenge(ctx: ServiceContext, challenge: string, ceremony: "registration" | "authentication", accountId: string | null = null) {
-  await ctx.db
-    .insert(webauthnChallenges)
-    .values({ ownerId: ctx.ownerId, challenge, ceremony, accountId, expiresAt: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString() })
-    .onConflictDoUpdate({
-      target: webauthnChallenges.ownerId,
-      set: { challenge, ceremony, accountId, expiresAt: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(), createdAt: nowIso() },
-    });
+  await ctx.db.delete(webauthnChallenges).where(and(eq(webauthnChallenges.ownerId, ctx.ownerId), lte(webauthnChallenges.expiresAt, nowIso())));
+  await ctx.db.insert(webauthnChallenges).values({
+    ownerId: ctx.ownerId,
+    challenge,
+    ceremony,
+    accountId,
+    expiresAt: new Date(Date.now() + CHALLENGE_TTL_MS).toISOString(),
+  });
 }
 
-async function consumeChallenge(ctx: ServiceContext, ceremony: "registration" | "authentication", accountId: string | null = null) {
-  const [row] = await ctx.db.delete(webauthnChallenges).where(eq(webauthnChallenges.ownerId, ctx.ownerId)).returning();
-  if (!row || row.ceremony !== ceremony || row.accountId !== accountId || Date.parse(row.expiresAt) < Date.now()) {
-    throw new BadRequestError("WebAuthn challenge is missing, expired, or does not match this request");
+function challengeFromResponse(response: unknown) {
+  const clientDataJSON = (response as RegistrationResponseJSON | AuthenticationResponseJSON | undefined)?.response?.clientDataJSON;
+  if (typeof clientDataJSON !== "string") return null;
+  try {
+    const clientData = JSON.parse(new TextDecoder().decode(isoBase64URL.toBuffer(clientDataJSON))) as { challenge?: unknown };
+    return typeof clientData.challenge === "string" ? clientData.challenge : null;
+  } catch {
+    return null;
+  }
+}
+
+async function consumeChallenge(ctx: ServiceContext, response: unknown, ceremony: "registration" | "authentication", accountId: string | null = null) {
+  const challenge = challengeFromResponse(response);
+  if (!challenge) throw new WebAuthnChallengeError();
+  const accountCondition = accountId === null ? isNull(webauthnChallenges.accountId) : eq(webauthnChallenges.accountId, accountId);
+  const [row] = await ctx.db
+    .delete(webauthnChallenges)
+    .where(
+      and(
+        eq(webauthnChallenges.challenge, challenge),
+        eq(webauthnChallenges.ownerId, ctx.ownerId),
+        eq(webauthnChallenges.ceremony, ceremony),
+        accountCondition,
+        gt(webauthnChallenges.expiresAt, nowIso()),
+      ),
+    )
+    .returning({ challenge: webauthnChallenges.challenge });
+  if (!row) {
+    throw new WebAuthnChallengeError();
   }
   return row.challenge;
 }
@@ -93,7 +126,7 @@ export async function registrationOptions(ctx: ServiceContext, request: Request)
 }
 
 export async function verifyRegistration(ctx: ServiceContext, request: Request, response: unknown) {
-  const challenge = await consumeChallenge(ctx, "registration");
+  const challenge = await consumeChallenge(ctx, response, "registration");
   const { origin, rpID } = webauthnContext(request);
   try {
     const result = await verifyRegistrationResponse({
@@ -145,7 +178,7 @@ export async function authenticationOptions(ctx: ServiceContext, request: Reques
 
 export async function authenticateAndReveal(ctx: ServiceContext, env: Env, request: Request, accountId: string, identity: Identity, response: unknown) {
   await requireAccount(ctx, accountId);
-  const challenge = await consumeChallenge(ctx, "authentication", accountId);
+  const challenge = await consumeChallenge(ctx, response, "authentication", accountId);
   const credentialId = (response as AuthenticationResponseJSON | undefined)?.id;
   const stored = credentialId
     ? await ctx.db
