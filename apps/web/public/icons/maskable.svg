@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed variant of /icon.svg. Bonus: a drawn hunting bow with a rune-fletched gold arrow (after Skaði, Norse goddess of the hunt) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a2733"/><stop offset="1" stop-color="#12606f"/>
+    </linearGradient>
+    <linearGradient id="limb" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#bfe3ea"/><stop offset=".5" stop-color="#ffffff"/><stop offset="1" stop-color="#bfe3ea"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g transform="translate(256 256) scale(0.8) translate(-256 -256) translate(35.5 -34) rotate(45 256 256) translate(0 34)">
+    <path d="M104 296 L256 366 L408 296" fill="none" stroke="#8fcad6" stroke-width="7" stroke-linejoin="round"/>
+    <!-- limbs: filled, tapering to recurved tips -->
+    <path d="M104 296 C 92 268, 112 246, 130 232 C 176 192, 214 176, 256 176 C 298 176, 336 192, 382 232 C 400 246, 420 268, 408 296
+             C 400 276, 388 262, 368 246 C 326 214, 294 206, 256 206 C 218 206, 186 214, 144 246 C 124 262, 112 276, 104 296 Z"
+          fill="url(#limb)" stroke="url(#limb)" stroke-width="8" stroke-linejoin="round"/>
+    <rect x="240" y="170" width="32" height="42" rx="10" fill="#0d3f4c" stroke="#bfe3ea" stroke-width="5"/>
+    <path d="M256 384 V 116" stroke="#f2b04a" stroke-width="16" stroke-linecap="round"/>
+    <path d="M256 62 L296 128 L256 112 L216 128 Z" fill="#f2b04a" stroke="#f2b04a" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M224 414 L256 384 L288 414 M224 444 L256 414 L288 444" fill="none" stroke="#f2b04a" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

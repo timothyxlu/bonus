@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { t, type MessageKey } from "../i18n";
 import { cx } from "../lib/format";
 import { Link, useRouter } from "../lib/router";
+import { InstallBanner } from "./InstallApp";
 import { IconCards, IconCheck, IconCog, IconGift, IconHome, IconBook, IconCompass, IconMore, IconTarget } from "./icons";
 
 type NavItem = { to: string; key: MessageKey; icon: (p: { small?: boolean }) => ReactNode };
@@ -26,7 +27,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh lg:flex">
       {/* Wide screens: left navigation */}
-      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-line bg-surface px-3 py-5 lg:flex">
+      <aside className="pt-safe pl-safe sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-line bg-surface px-3 py-5 lg:flex">
         <div className="mb-6 flex items-center gap-2 px-2">
           <img src="/icon.svg" alt="" className="h-8 w-8" />
           <div>
@@ -54,11 +55,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="min-w-0 flex-1">
         {/* Phone: compact header */}
-        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-line bg-surface/90 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="safe-header sticky top-0 z-20 flex items-center gap-2 border-b border-line bg-surface/90 px-4 py-3 backdrop-blur lg:hidden">
           <img src="/icon.svg" alt="" className="h-7 w-7" />
           <p className="font-semibold">{t([...NAV, ...TABS].find((n) => isActive(path, n.to))?.key ?? "nav.dashboard")}</p>
         </header>
-        <main className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-4 lg:px-8 lg:pb-8 lg:pt-6">{children}</main>
+        <main className="safe-x mx-auto w-full max-w-[1600px] px-4 pb-24 pt-4 lg:px-8 lg:pb-8 lg:pt-6">
+          <InstallBanner />
+          {children}
+        </main>
       </div>
 
       {/* Phone: bottom tab bar */}

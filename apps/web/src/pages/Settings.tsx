@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { InstallCard } from "../components/InstallApp";
 import { Badge, Button, Card, ErrorText, Input, Select, Textarea } from "../components/ui";
 import { t } from "../i18n";
 import { api } from "../lib/api";
@@ -22,6 +23,7 @@ export function SettingsPage() {
             {me.data?.email ?? "…"} {me.data && <Badge>{me.data.source}</Badge>}
           </p>
         </Card>
+        <InstallCard />
         <ImportCard />
       </div>
       <div className="space-y-4">

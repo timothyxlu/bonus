@@ -1,17 +1,35 @@
 {
+  "id": "/",
   "name": "Bonus - 奖励猎人",
   "short_name": "Bonus",
   "description": "信用卡、银行开户、礼品卡折扣等各类奖励的追踪与资格检查",
-  "start_url": "/",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0a2733",
-  "theme_color": "#0a2733",
-  "lang": "zh-CN",
+  "orientation": "any",
+  "background_color": "#eef2f1",
+  "theme_color": "#ffffff",
+  "user_preferences": {
+    "color_scheme_dark": { "background_color": "#0b1216", "theme_color": "#121b21" }
+  },
+  "categories": ["finance", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/wide.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide", "label": "概览：奖励进度与 5/24 状态" },
+    { "src": "/screenshots/narrow.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "手机上查看奖励进度" }
+  ],
+  "shortcuts": [
+    { "name": "奖励", "url": "/bonuses", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "机会", "url": "/opportunities", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "资格检查", "url": "/eligibility", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

@@ -153,3 +153,8 @@ Secrets take effect immediately; no redeploy needed.
 
 Use **设置 → 导入历史** in the web app (JSON or CSV, see [IMPORT.md](IMPORT.md)), or the
 `add_account` / `record_event` MCP tools. Real data never goes through git.
+
+
+## 10. Install the app
+
+See [PWA.md](PWA.md): iPhone (Safari → 分享 → 添加到主屏幕), Android and desktop Chrome/Edge (设置 → 安装 App). No Access change is needed.

@@ -3,13 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a2733" />
+    <meta name="description" content="信用卡、银行开户、礼品卡折扣等各类奖励的追踪与资格检查" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121b21" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- Content draws under the iOS status bar; the layout pads with env(safe-area-inset-*). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Bonus" />
+    <meta name="application-name" content="Bonus" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" sizes="180x180" />
+    <!--
+      The whole site is behind Cloudflare Access. Browsers fetch the manifest in CORS mode
+      *without* cookies by default, which Access answers with a 302 to its login page, so the
+      manifest never loads and the app is not installable. use-credentials sends the
+      CF_Authorization cookie with that fetch.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
     <title>Bonus</title>
   </head>
   <body>
