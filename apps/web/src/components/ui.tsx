@@ -56,7 +56,7 @@ export function Card({ title, action, children, className }: { title?: ReactNode
     <section className={cx("rounded-[var(--radius-panel)] border border-line bg-surface p-4 sm:p-5", className)}>
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between gap-2">
-          {title && <h2 className="min-w-0 text-base font-semibold text-ink">{title}</h2>}
+          {title && <h2 className="min-w-0 flex-1 text-base font-semibold text-ink">{title}</h2>}
           {action}
         </div>
       )}
