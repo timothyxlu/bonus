@@ -26,6 +26,7 @@ import {
   offerInput,
   offerPatch,
   isoDate,
+  preferencesPatch,
   productInput,
   productPatch,
 } from "../schemas";
@@ -44,6 +45,7 @@ import { BiometricNotConfiguredError, WebAuthnChallengeError } from "../services
 import { DecryptError, SecretsUnavailableError } from "../secrets/crypto";
 import * as offersSvc from "../services/offers";
 import * as loyalty from "../services/loyalty";
+import * as preferences from "../services/preferences";
 
 type Vars = { identity: Identity; svc: ServiceContext };
 export type ApiEnv = { Bindings: Env; Variables: Vars };
@@ -148,6 +150,10 @@ export function createApi() {
   api.delete("/accounts/:id/secret", async (c) => c.json(await secrets.deleteSecret(c.var.svc, c.req.param("id"))));
 
   api.get("/me", (c) => c.json({ email: c.var.identity.email, source: c.var.identity.source }));
+
+  // Account-level user preferences (persisted per owner, not per device)
+  api.get("/preferences", async (c) => c.json(await preferences.getPreferences(c.var.svc)));
+  api.patch("/preferences", async (c) => c.json(await preferences.updatePreferences(c.var.svc, await body(c, preferencesPatch))));
 
   // Catalog
   api.get("/institutions", async (c) => c.json(await catalog.listInstitutions(c.var.svc)));

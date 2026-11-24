@@ -308,6 +308,13 @@ const zhCN = {
   "settings.biometricLastUsed": "上次使用 {date}",
   "settings.biometricNotConfigured": "尚未设置，敏感信息目前无法显示。",
   "settings.biometricUnsupported": "当前浏览器不支持设备验证，请使用支持 WebAuthn 的现代浏览器。",
+  "settings.homeState": "所在州",
+  "settings.homeStateLabel": "美国州 / U.S. state",
+  "settings.homeStateHint": "保存在你的账户中，换设备或重新登录后依然有效。",
+  "settings.homeStateNotSet": "未设置 / Not set",
+  "settings.homeStateSaving": "保存中…",
+  "settings.homeStateSaved": "已保存：{name}",
+  "settings.homeStateCleared": "已清除所在州",
   "settings.biometricRemoveConfirm": "删除这个设备验证凭据？删除最后一个后将无法显示敏感信息。",
 
   "pwa.title": "安装 App",

@@ -268,6 +268,7 @@ export function Select({ className, children, value, defaultValue, disabled, req
         aria-controls={open ? listId : undefined}
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
         aria-label={rest["aria-label"]}
+        aria-describedby={rest["aria-describedby"]}
         aria-required={required || undefined}
         disabled={disabled}
         onClick={() => (open ? close() : openList())}

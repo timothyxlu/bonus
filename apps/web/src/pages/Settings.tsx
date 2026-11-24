@@ -1,11 +1,12 @@
 import { browserSupportsWebAuthn, startRegistration, type PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { US_STATES, usStateName } from "@bonus/core";
+import { useId, useState } from "react";
 import { InstallCard } from "../components/InstallApp";
 import { Badge, Button, Card, ErrorText, Input, Select, Textarea } from "../components/ui";
 import { t } from "../i18n";
 import { api, ApiError } from "../lib/api";
-import { useMe, useMutate } from "../lib/queries";
+import { useMe, useMutate, usePreferences, useUpdatePreferences } from "../lib/queries";
 import { Link } from "../lib/router";
 
 interface ImportResult {
@@ -25,6 +26,7 @@ export function SettingsPage() {
             {me.data?.email ?? "…"} {me.data && <Badge>{me.data.source}</Badge>}
           </p>
         </Card>
+        <HomeStateCard />
         <BiometricCard />
         <InstallCard />
         <ImportCard />
@@ -37,6 +39,62 @@ export function SettingsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/** The user's U.S. state, saved to their account as soon as it is picked. "" = not set. */
+export function HomeStateCard() {
+  const id = useId();
+  const prefs = usePreferences();
+  const update = useUpdatePreferences();
+  const [notice, setNotice] = useState("");
+  // While a save is in flight show the chosen value; otherwise the server's (so a failed save reverts).
+  const value = update.isPending ? (update.variables?.homeState ?? "") : (prefs.data?.homeState ?? "");
+
+  const onChange = (next: string) => {
+    setNotice("");
+    update.mutate(
+      { homeState: next || null },
+      {
+        onSuccess: (saved) => {
+          const name = usStateName(saved.homeState);
+          setNotice(name ? t("settings.homeStateSaved", { name }) : t("settings.homeStateCleared"));
+        },
+      },
+    );
+  };
+
+  return (
+    <Card title={t("settings.homeState")}>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-muted">
+        {t("settings.homeStateLabel")}
+      </label>
+      <Select
+        id={id}
+        name="homeState"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={!prefs.data || update.isPending}
+        aria-describedby={`${id}-hint`}
+        className="w-full min-w-0 sm:max-w-xs"
+      >
+        <option value="">{t("settings.homeStateNotSet")}</option>
+        {US_STATES.map((s) => (
+          <option key={s.code} value={s.code}>
+            {`${s.name} (${s.code})`}
+          </option>
+        ))}
+      </Select>
+      <p id={`${id}-hint`} className="mt-2 text-sm text-muted">
+        {t("settings.homeStateHint")}
+      </p>
+      <p role="status" aria-live="polite" className={`mt-2 text-sm empty:hidden ${update.isPending ? "text-muted" : "text-money"}`}>
+        {update.isPending ? t("settings.homeStateSaving") : notice}
+      </p>
+      <div className="mt-2 empty:hidden">
+        <ErrorText error={update.error ?? prefs.error} />
+      </div>
+    </Card>
   );
 }
 
