@@ -30,11 +30,33 @@ export interface BonusRecord {
   family: string | null;
   issuer: string;
   account: HistoryAccount;
+  /** Not a recorded bonus: the open date stands in for an unrecorded one. */
+  approx?: boolean;
 }
 
-/** Every bonus in the history, tagged with the product it was earned on. */
-export function allBonuses(accounts: HistoryAccount[], asOf: IsoDate): BonusRecord[] {
+/**
+ * Every bonus in the history, tagged with the product it was earned on.
+ * With `approximate`, opened accounts with no bonus record (and not marked noBonus)
+ * contribute their open date as an approximate bonus date, on the product they were
+ * opened as (before any product change).
+ */
+export function allBonuses(accounts: HistoryAccount[], asOf: IsoDate, opts: { approximate?: boolean } = {}): BonusRecord[] {
   const out: BonusRecord[] = [];
+  if (opts.approximate) {
+    for (const a of accounts) {
+      const recorded = (a.bonusDates?.length ?? 0) + (a.bonuses?.length ?? 0);
+      if (recorded > 0 || a.noBonus || !wasOpened(a) || !a.openedAt) continue;
+      const original = a.pastProducts?.[0];
+      out.push({
+        date: a.openedAt,
+        productId: original ? original.productId : (a.productId ?? null),
+        family: original ? (original.family ?? null) : (a.family ?? null),
+        issuer: a.issuer,
+        account: a,
+        approx: true,
+      });
+    }
+  }
   for (const a of accounts) {
     for (const date of a.bonusDates ?? [])
       out.push({ date, productId: a.productId ?? null, family: a.family ?? null, issuer: a.issuer, account: a });
@@ -54,9 +76,11 @@ export function latestBonus(
   accounts: HistoryAccount[],
   asOf: IsoDate,
   match: (b: BonusRecord) => boolean,
+  opts: { approximate?: boolean } = {},
 ): BonusRecord | undefined {
   let best: BonusRecord | undefined;
-  for (const b of allBonuses(accounts, asOf)) if (match(b) && (!best || b.date > best.date)) best = b;
+  for (const b of allBonuses(accounts, asOf, opts))
+    if (match(b) && (!best || b.date > best.date || (b.date === best.date && !b.approx))) best = b;
   return best;
 }
 

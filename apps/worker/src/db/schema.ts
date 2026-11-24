@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type {
   AccountKind,
   AccountStatus,
@@ -52,6 +52,8 @@ export const products = sqliteTable(
     /** Points program / currency, e.g. "Chase Ultimate Rewards". */
     currency: text("currency"),
     rules: text("rules", { mode: "json" }).$type<ProductRules>().notNull().default({}),
+    /** Owner-created products only; seeded products are archived per owner via catalog_overrides. */
+    archivedAt: text("archived_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -73,7 +75,13 @@ export const accounts = sqliteTable(
     /** For accounts whose product is not in the catalog. */
     institutionId: text("institution_id").references(() => institutions.id),
     nickname: text("nickname"),
-    last4: text("last4"),
+    /**
+     * Trailing 4 or 5 digits (Amex shows 5). Never a full number. Column added in
+     * migration 0003 with CHECK (NULL or 4-5 digits); exposed as `last4` for compatibility.
+     */
+    last4: text("last_digits"),
+    /** Legacy 4-digit column (CHECKed to exactly 4 digits); values were copied to last_digits. */
+    legacyLast4: text("last4"),
     status: text("status").$type<AccountStatus>().notNull().default("open"),
     appliedAt: text("applied_at"),
     openedAt: text("opened_at"),
@@ -89,7 +97,7 @@ export const accounts = sqliteTable(
     index("accounts_owner_idx").on(t.ownerId),
     index("accounts_product_idx").on(t.productId),
     // Defense in depth: never store more than the last 4 digits.
-    check("accounts_last4_check", sql`${t.last4} IS NULL OR ${t.last4} GLOB '[0-9][0-9][0-9][0-9]'`),
+    check("accounts_last4_check", sql`${t.legacyLast4} IS NULL OR ${t.legacyLast4} GLOB '[0-9][0-9][0-9][0-9]'`),
   ],
 );
 
@@ -225,3 +233,28 @@ export const offers = sqliteTable(
 );
 
 export type Offer = typeof offers.$inferSelect;
+
+/**
+ * Per-owner edits to shared (seeded) catalog rows. The seed stays the default; reads
+ * merge `data` over it, and catalog re-syncs never touch this table.
+ */
+export const catalogOverrides = sqliteTable(
+  "catalog_overrides",
+  {
+    ownerId: text("owner_id").notNull(),
+    entity: text("entity").$type<"product" | "institution">().notNull(),
+    entityId: text("entity_id").notNull(),
+    data: text("data", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.ownerId, t.entity, t.entityId] })],
+);
+
+/** Small key/value table for app-level state (e.g. the synced catalog version). */
+export const appMeta = sqliteTable("app_meta", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
+export type CatalogOverride = typeof catalogOverrides.$inferSelect;

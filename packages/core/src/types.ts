@@ -113,6 +113,11 @@ export interface HistoryAccount {
    * product-changed after earning a bonus; overrides nothing, adds to bonusDates.
    */
   bonuses?: { date: IsoDate; productId?: string | null; family?: string | null }[];
+  /**
+   * True when the account's offer explicitly did not pay out (bonus failed/cancelled):
+   * no approximate bonus date is assumed for it.
+   */
+  noBonus?: boolean;
   /** Products this account used to be (before product changes). */
   pastProducts?: { productId: string; family?: string | null; familyRank?: number }[];
   /** Copied from the product rules when known. */

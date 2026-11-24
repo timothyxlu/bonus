@@ -34,7 +34,7 @@ describe("MCP server", () => {
     const r = await rpc("tools/list", {});
     const names = r.result.tools.map((t: any) => t.name).sort();
     expect(names).toEqual(
-      ["add_account", "add_offer", "list_opportunities", "update_offer", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "record_event", "upcoming_deadlines"].sort(),
+      ["add_account", "delete_account", "add_institution", "add_offer", "add_product", "archive_product", "list_institutions", "list_opportunities", "update_account", "update_institution", "update_offer", "update_product", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "record_event", "upcoming_deadlines"].sort(),
     );
   });
 
@@ -62,6 +62,30 @@ describe("MCP server", () => {
 
     expect((await callTool("upcoming_deadlines")).data).toEqual([]);
     expect((await callTool("list_benefits")).data).toEqual([]);
+  });
+
+  it("catalog and account editing tools", async () => {
+    const inst = await callTool("add_institution", { name: "Example PenFed-like CU", type: "bank" });
+    expect(inst.isError).toBe(false);
+    const prod = await callTool("add_product", { institutionId: "chase", name: "Example Hotel Card", annualFee: 95, currency: "World of Hyatt", family: "chase_hyatt", rules: { bonusCooldownMonths: 24 } });
+    expect(prod.data).toMatchObject({ id: "chase-example-hotel-card", annualFee: 95 });
+    expect((await callTool("list_products", { q: "example hotel" })).data[0].source).toBe("user");
+    expect((await callTool("update_product", { productId: "amex-hilton-aspire", annualFee: 550, rules: { familyRank: 3 } })).data.customized).toBe(true);
+    expect((await callTool("update_institution", { institutionId: inst.data.id, name: "Renamed CU" })).data.name).toBe("Renamed CU");
+
+    const acct = await callTool("add_account", { productId: "chase-sapphire-preferred", openedAt: "2024-05-01" });
+    const pc = await callTool("record_event", { accountId: acct.data.id, type: "downgrade", date: "2025-05-01", toProductId: prod.data.id });
+    expect(pc.isError).toBe(false);
+    const upd = await callTool("update_account", { accountId: acct.data.id, nickname: "Hotel", last4: "9876", notes: "pc'd" });
+    expect(upd.data).toMatchObject({ nickname: "Hotel", last4: "9876", productId: prod.data.id });
+    expect((await callTool("update_account", { accountId: acct.data.id, last4: "4111111111111111" })).isError).toBe(true);
+
+    expect((await callTool("archive_product", { productId: prod.data.id })).data.archived).toBe(true);
+    expect((await callTool("list_products", { q: "example hotel" })).data).toHaveLength(0);
+    expect((await callTool("get_account", { accountId: acct.data.id })).data.productName).toBe("Example Hotel Card");
+
+    expect((await callTool("delete_account", { accountId: acct.data.id })).data.deleted).toBe(acct.data.id);
+    expect((await callTool("get_account", { accountId: acct.data.id })).isError).toBe(true);
   });
 
   it("/mcp requires an OAuth bearer token", async () => {

@@ -10,8 +10,9 @@ import type { AccountSummary, Product } from "../lib/types";
 import { Button, ErrorText, Field, Input, Select, Textarea } from "./ui";
 
 const CUSTOM = "__custom__";
+export const NEW_PRODUCT = "__new_product__";
 
-export function ProductSelect({ value, onChange, products, allowCustom, required }: { value: string; onChange: (v: string) => void; products: Product[]; allowCustom?: boolean; required?: boolean }) {
+export function ProductSelect({ value, onChange, products, allowCustom, allowNew, required }: { value: string; onChange: (v: string) => void; products: Product[]; allowCustom?: boolean; allowNew?: boolean; required?: boolean }) {
   const groups = useMemo(() => {
     const m = new Map<string, Product[]>();
     for (const p of products) m.set(p.institutionName, [...(m.get(p.institutionName) ?? []), p]);
@@ -30,6 +31,7 @@ export function ProductSelect({ value, onChange, products, allowCustom, required
           ))}
         </optgroup>
       ))}
+      {allowNew && <option value={NEW_PRODUCT}>{t("acct.newProduct")}</option>}
       {allowCustom && <option value={CUSTOM}>{t("acct.customProduct")}</option>}
     </Select>
   );
@@ -45,6 +47,8 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
     productId: initial ? (initial.productId ?? CUSTOM) : "",
     institutionId: initial?.institutionId ?? "",
     newInstitution: "",
+    newProductName: "",
+    newProductFee: "",
     nickname: initial?.nickname ?? "",
     last4: initial?.last4 ?? "",
     ownerType: initial?.ownerType ?? "",
@@ -62,18 +66,33 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
   const meta = KIND_META[f.kind];
   const kindProducts = products.filter((p) => p.kind === f.kind);
   // Kinds without catalog products (bank accounts, gift cards) pick an institution directly.
-  const usesCatalog = meta.hasCatalog && kindProducts.length > 0;
+  const usesCatalog = meta.hasCatalog || kindProducts.length > 0;
+  const newProduct = usesCatalog && f.productId === NEW_PRODUCT;
+  // Institution picker is shown for "no product" accounts and when creating a product inline.
   const custom = !usesCatalog || f.productId === CUSTOM;
+  const needsInstitution = custom || newProduct;
   const face = Number(f.faceValue);
   const price = Number(f.purchasePrice);
   const discount = f.kind === "gift_card" && face > 0 && price > 0 && price < face ? Math.round(((face - price) / face) * 100) : null;
 
   const save = useMutate(async () => {
-    let institutionId = custom ? f.institutionId || null : null;
-    if (custom && f.institutionId === NEW_INST) {
+    let institutionId = needsInstitution ? f.institutionId || null : null;
+    if (needsInstitution && f.institutionId === NEW_INST) {
       const type = f.kind === "bank_account" ? "bank" : f.kind === "gift_card" ? "merchant" : "issuer";
       const inst = await api.post<{ id: string }>("/institutions", { name: f.newInstitution.trim(), type });
       institutionId = inst.id;
+    }
+    let productId = custom ? null : f.productId || null;
+    if (newProduct) {
+      const p = await api.post<{ id: string }>("/products", {
+        institutionId,
+        name: f.newProductName.trim(),
+        kind: f.kind,
+        ownerType: f.ownerType || "personal",
+        annualFee: Number(f.newProductFee || 0),
+      });
+      productId = p.id;
+      institutionId = null;
     }
     const details: Record<string, unknown> = { ...(initial?.details ?? {}) };
     if (f.kind === "bank_account") details.accountType = f.accountType;
@@ -83,8 +102,8 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
     }
     const body = {
       kind: f.kind,
-      productId: custom ? null : f.productId || null,
-      institutionId,
+      productId,
+      institutionId: productId ? null : institutionId,
       nickname: f.nickname || null,
       last4: f.last4 || null,
       ownerType: f.ownerType || undefined,
@@ -129,10 +148,20 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
 
       {usesCatalog && (
         <Field label={t("acct.product")} className="sm:col-span-2">
-          <ProductSelect value={f.productId} onChange={(v) => setF((s) => ({ ...s, productId: v }))} products={kindProducts} allowCustom required />
+          <ProductSelect value={f.productId} onChange={(v) => setF((s) => ({ ...s, productId: v }))} products={kindProducts} allowCustom allowNew required />
         </Field>
       )}
-      {custom && (
+      {newProduct && (
+        <>
+          <Field label={t("acct.newProductName")} hint={t("acct.newProductHint")}>
+            <Input value={f.newProductName} onChange={set("newProductName")} required autoFocus />
+          </Field>
+          <Field label={t("acct.col.fee")}>
+            <Input type="number" min="0" value={f.newProductFee} onChange={set("newProductFee")} />
+          </Field>
+        </>
+      )}
+      {needsInstitution && (
         <Field label={t("acct.institution")} className={f.institutionId === NEW_INST ? "" : "sm:col-span-2"}>
           <Select value={f.institutionId} onChange={set("institutionId")} required>
             <option value="">—</option>
@@ -145,7 +174,7 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
           </Select>
         </Field>
       )}
-      {custom && f.institutionId === NEW_INST && (
+      {needsInstitution && f.institutionId === NEW_INST && (
         <Field label={t("acct.newInstitutionName")}>
           <Input value={f.newInstitution} onChange={set("newInstitution")} required autoFocus />
         </Field>
@@ -160,7 +189,7 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
         />
       </Field>
       <Field label={t(meta.last4 ?? "acct.last4")} hint={t(meta.last4Hint ?? "acct.last4Hint")}>
-        <Input value={f.last4} onChange={set("last4")} inputMode="numeric" pattern="\d{4}" maxLength={4} placeholder="1234" autoComplete="off" />
+        <Input value={f.last4} onChange={set("last4")} inputMode="numeric" pattern="\d{4,5}" maxLength={5} placeholder="1234" autoComplete="off" />
       </Field>
 
       {f.kind === "bank_account" && (

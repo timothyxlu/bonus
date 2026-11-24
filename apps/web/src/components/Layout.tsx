@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { t, type MessageKey } from "../i18n";
 import { cx } from "../lib/format";
 import { Link, useRouter } from "../lib/router";
-import { IconCards, IconCheck, IconCog, IconGift, IconHome, IconCompass, IconMore, IconTarget } from "./icons";
+import { IconCards, IconCheck, IconCog, IconGift, IconHome, IconBook, IconCompass, IconMore, IconTarget } from "./icons";
 
 type NavItem = { to: string; key: MessageKey; icon: (p: { small?: boolean }) => ReactNode };
 const NAV: NavItem[] = [
@@ -12,11 +12,12 @@ const NAV: NavItem[] = [
   { to: "/accounts", key: "nav.accounts", icon: IconCards },
   { to: "/benefits", key: "nav.benefits", icon: IconGift },
   { to: "/eligibility", key: "nav.eligibility", icon: IconCheck },
+  { to: "/catalog", key: "nav.catalog", icon: IconBook },
   { to: "/settings", key: "nav.settings", icon: IconCog },
 ];
 /** Phone tab bar: at most five; the rest live under 更多. */
 const TABS: NavItem[] = [...NAV.slice(0, 4), { to: "/more", key: "nav.more", icon: IconMore }];
-const MORE_PATHS = ["/more", "/benefits", "/eligibility", "/settings"];
+const MORE_PATHS = ["/more", "/benefits", "/eligibility", "/catalog", "/settings"];
 
 const isActive = (path: string, to: string) => (to === "/" ? path === "/" : path === to || path.startsWith(`${to}/`));
 

@@ -229,7 +229,7 @@ function ClaimForm({ o, onDone }: { o: Opportunity; onDone: () => void }) {
           <Input type="date" value={openedAt} onChange={(e) => setOpenedAt(e.target.value)} required />
         </Field>
         <Field label={t("acct.last4")} hint={t("acct.last4Hint")}>
-          <Input value={last4} onChange={(e) => setLast4(e.target.value)} inputMode="numeric" pattern="\d{4}" maxLength={4} placeholder="1234" autoComplete="off" />
+          <Input value={last4} onChange={(e) => setLast4(e.target.value)} inputMode="numeric" pattern="\d{4,5}" maxLength={5} placeholder="1234" autoComplete="off" />
         </Field>
       </div>
       <ErrorText error={claim.error} />

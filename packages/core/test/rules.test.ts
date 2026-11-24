@@ -76,6 +76,23 @@ describe("Chase Sapphire", () => {
   });
 });
 
+describe("Chase Sapphire approximation", () => {
+  it("a closed Sapphire with no bonus record blocks ~48 months from its open date", () => {
+    const csp = acct("chase-sapphire-preferred", "2024-02-10", { status: "closed", closedAt: "2025-03-01" });
+    const r = check("chase-sapphire-reserve", [csp]);
+    const s48 = rule(r, "chase_sapphire_48");
+    expect(s48?.outcome).toBe("block");
+    expect(s48?.eligibleFrom).toBe("2028-02-10");
+    expect(s48?.params?.approx).toBe(1);
+  });
+  it("uses the original product of a product-changed account", () => {
+    const pc = acct("chase-freedom-unlimited", "2024-02-10", { pastProducts: [{ productId: "chase-sapphire-preferred", family: "chase_sapphire" }] });
+    expect(rule(check("chase-sapphire-reserve", [pc]), "chase_sapphire_48")?.eligibleFrom).toBe("2028-02-10");
+    // ...and does not count against the Freedom Unlimited 24-month rule
+    expect(rule(check("chase-freedom-unlimited", [{ ...pc, status: "closed", closedAt: "2025-01-01" }]), "bonus_cooldown")?.outcome).toBe("pass");
+  });
+});
+
 describe("Amex", () => {
   it("once per lifetime per product", () => {
     const r = check("amex-gold", [acct("amex-gold", "2015-01-01", { status: "closed", closedAt: "2016-01-01" })]);
@@ -132,9 +149,24 @@ describe("Citi", () => {
     const r = checkEligibility("citi-custom-cash", { products: fam, accounts: [acct("citi-strata-premier", "2023-05-01", { bonusDates: ["2023-07-01"] })] }, asOf);
     expect(r.reasons.find((x) => x.rule === "citi_48")?.outcome).toBe("block");
   });
-  it("uncertain when a recent account has no recorded bonus", () => {
+  it("no bonus record: the open date is an approximate bonus date (and says so)", () => {
     const r = check("citi-double-cash", [acct("citi-double-cash", "2024-01-01", { status: "closed", closedAt: "2025-01-01" })]);
-    expect(rule(r, "citi_48")?.outcome).toBe("uncertain");
+    const c = rule(r, "citi_48");
+    expect(c?.outcome).toBe("block");
+    expect(c?.eligibleFrom).toBe("2028-01-01");
+    expect(c?.params?.approx).toBe(1);
+    expect(c?.message).toMatch(/approximate/);
+    // a recorded bonus wins over the approximation
+    const real = check("citi-double-cash", [acct("citi-double-cash", "2024-01-01", { status: "closed", closedAt: "2025-01-01", bonusDates: ["2024-04-01"] })]);
+    expect(rule(real, "citi_48")?.eligibleFrom).toBe("2028-04-01");
+    expect(rule(real, "citi_48")?.params?.approx).toBe(0);
+  });
+  it("no approximation when the bonus explicitly did not pay out", () => {
+    const r = check("citi-double-cash", [acct("citi-double-cash", "2024-01-01", { status: "closed", closedAt: "2025-01-01", noBonus: true })]);
+    expect(rule(r, "citi_48")?.outcome).toBe("pass");
+  });
+  it("approximation outside the window passes", () => {
+    expect(rule(check("citi-double-cash", [acct("citi-double-cash", "2020-01-01", { status: "closed", closedAt: "2021-01-01" })]), "citi_48")?.outcome).toBe("pass");
   });
   it("1/8 and 2/65, counting denied applications", () => {
     const r = check("citi-custom-cash", [acct("citi-strata-premier", null, { status: "denied", appliedAt: "2026-11-18" })]);
@@ -210,5 +242,18 @@ describe("product changes", () => {
     const pc = acct("amex-green", "2019-01-01", { pastProducts: [{ productId: "amex-platinum", family: "amex_mr_charge", familyRank: 3 }] });
     expect(check("amex-platinum", [pc]).reasons.find((x) => x.rule === "amex_lifetime")?.outcome).toBe("block");
     expect(check("amex-gold", [pc]).reasons.find((x) => x.rule === "amex_family")?.outcome).toBe("block");
+  });
+});
+
+describe("catalog", () => {
+  it("has unique ids that reference known institutions, and includes the newly added products", async () => {
+    const { CATALOG_PRODUCTS, CATALOG_INSTITUTIONS } = await import("../src");
+    const ids = CATALOG_PRODUCTS.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const inst = new Set(CATALOG_INSTITUTIONS.map((i) => i.id));
+    for (const p of CATALOG_PRODUCTS) expect(inst.has(p.institutionId), p.id).toBe(true);
+    for (const id of ["amex-hilton-aspire", "amex-everyday-preferred", "chase-united-quest", "citi-aa-mileup", "citi-rewards-plus", "barclays-hawaiian", "us-bank-altitude-reserve", "wells-fargo-bilt", "boa-unlimited-cash"])
+      expect(ids).toContain(id);
+    expect(inst.has("synchrony") && inst.has("penfed")).toBe(true);
   });
 });

@@ -74,15 +74,17 @@ export const chaseSapphire: Rule = ({ product, accounts, asOf }) => {
       params: { cards: holding.map(accountLabel).join(", ") },
     });
   }
-  const lastBonus = latestBonus(accounts, asOf, (b) => b.issuer === "chase" && b.family === "chase_sapphire")?.date;
-  if (lastBonus) {
-    const until = addMonths(lastBonus, 48);
+  const last = latestBonus(accounts, asOf, (b) => b.issuer === "chase" && b.family === "chase_sapphire", { approximate: true });
+  if (last) {
+    const until = addMonths(last.date, 48);
     if (until > asOf) {
       out.push({
         rule: "chase_sapphire_48",
         outcome: "block",
-        message: `Chase Sapphire: a Sapphire bonus was received on ${lastBonus}; another is not available until ${until} (48 months).`,
-        params: { lastBonus, eligibleFrom: until },
+        message: last.approx
+          ? `Chase Sapphire: no Sapphire bonus is recorded, so the open date ${last.date} of ${accountLabel(last.account)} is used as an approximate bonus date; another Sapphire bonus is likely not available until about ${until} (48 months). Record the real bonus date for accuracy.`
+          : `Chase Sapphire: a Sapphire bonus was received on ${last.date}; another is not available until ${until} (48 months).`,
+        params: { lastBonus: last.date, eligibleFrom: until, approx: last.approx ? 1 : 0, cards: accountLabel(last.account) },
         eligibleFrom: until,
       });
     }
@@ -125,44 +127,28 @@ export const bonusCooldown: Rule = ({ product, accounts, asOf }) => {
   if (!months) return [];
   const scope = product.rules?.cooldownScope ?? "product";
   const byFamily = scope === "family" && !!product.family;
-  const matching = accounts.filter((a) =>
-    byFamily ? a.issuer === product.issuer && a.family === product.family : a.productId === product.id,
-  );
   const ruleId = product.issuer === "citi" ? "citi_48" : "bonus_cooldown";
-  const lastBonus = latestBonus(accounts, asOf, (b) =>
-    byFamily ? b.issuer === product.issuer && b.family === product.family : b.productId === product.id,
-  )?.date;
-  if (lastBonus) {
-    const until = addMonths(lastBonus, months);
+  const last = latestBonus(
+    accounts,
+    asOf,
+    (b) => (byFamily ? b.issuer === product.issuer && b.family === product.family : b.productId === product.id),
+    { approximate: true },
+  );
+  if (last) {
+    const until = addMonths(last.date, months);
     if (until > asOf) {
       return [
         {
           rule: ruleId,
           outcome: "block",
-          message: `${months}-month bonus rule (${scope}): last bonus on ${lastBonus}; eligible again on ${until}.`,
-          params: { months, scope, lastBonus, eligibleFrom: until },
+          message: last.approx
+            ? `${months}-month bonus rule (${scope}): no bonus is recorded for ${accountLabel(last.account)}, so its open date ${last.date} is used as an approximate bonus date; eligible again around ${until}. Record the real bonus date (bonus_earned) for accuracy.`
+            : `${months}-month bonus rule (${scope}): last bonus on ${last.date}; eligible again on ${until}.`,
+          params: { months, scope, lastBonus: last.date, eligibleFrom: until, approx: last.approx ? 1 : 0, cards: accountLabel(last.account) },
           eligibleFrom: until,
         },
       ];
     }
-  }
-  // Accounts opened inside the window with no bonus recorded: we can't tell.
-  const unknown = matching.filter(
-    (a) =>
-      wasOpened(a) &&
-      (a.bonusDates ?? []).length === 0 &&
-      a.openedAt &&
-      addMonths(a.openedAt, months) > asOf,
-  );
-  if (unknown.length > 0) {
-    return [
-      {
-        rule: ruleId,
-        outcome: "uncertain",
-        message: `${months}-month bonus rule (${scope}): ${unknown.map(accountLabel).join(", ")} opened within ${months} months but no bonus is recorded. If a bonus was received, record a bonus_earned event.`,
-        params: { months, scope, cards: unknown.map(accountLabel).join(", ") },
-      },
-    ];
   }
   return [
     {

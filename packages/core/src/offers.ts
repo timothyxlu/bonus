@@ -26,6 +26,8 @@ export const DEFAULT_POINT_VALUES: { match: RegExp; cents: number }[] = [
   { match: /ihg/i, cents: 0.6 },
   { match: /hilton/i, cents: 0.5 },
   { match: /wyndham/i, cents: 1.0 },
+  { match: /bilt/i, cents: 1.5 },
+  { match: /hawaiian/i, cents: 1.0 },
 ];
 const UNIT_DEFAULT_CENTS: Record<RewardUnit, number> = { points: 1.0, miles: 1.2, USD: 100 };
 

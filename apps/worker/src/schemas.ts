@@ -18,11 +18,11 @@ export const isoDate = z.string().refine(isIsoDate, { message: "Expected a date 
 const optDate = isoDate.nullish();
 const optText = (max = 500) => z.string().trim().max(max).nullish();
 
-/** Only the last 4 digits. Rejects anything that looks like a full number. */
+/** Trailing 4 or 5 digits (Amex shows 5). Rejects anything that looks like a full number. */
 export const last4 = z
   .string()
   .trim()
-  .regex(/^\d{4}$/, { message: "last4 must be exactly 4 digits (never store full account numbers)" });
+  .regex(/^\d{4,5}$/, { message: "last4 must be the last 4 or 5 digits only (never store full card or account numbers)" });
 
 export const productRulesSchema = z
   .object({
@@ -54,7 +54,41 @@ export const productInput = z.object({
   currency: optText(80),
   rules: productRulesSchema.default({}),
 });
-export const productPatch = productInput.partial();
+/** Rule fields in a patch: a value sets it, null clears it, absent keeps it. */
+export const productRulesPatch = z
+  .object({
+    currentHolderIneligible: z.boolean().nullable().optional(),
+    bonusCooldownMonths: z.number().int().min(0).max(120).nullable().optional(),
+    cooldownScope: z.enum(["product", "family"]).nullable().optional(),
+    lifetimeBonus: z.boolean().nullable().optional(),
+    familyRank: z.number().int().min(0).max(100).nullable().optional(),
+    isCharge: z.boolean().nullable().optional(),
+    reportsToPersonal: z.boolean().nullable().optional(),
+  })
+  .strict();
+
+export const productPatch = z
+  .object({
+    institutionId: z.string().min(1).optional(),
+    name: z.string().trim().min(1).max(120).optional(),
+    kind: z.enum(ACCOUNT_KINDS).optional(),
+    ownerType: z.enum(OWNER_TYPES).optional(),
+    family: z.string().trim().max(60).nullable().optional(),
+    annualFee: z.number().min(0).max(100000).optional(),
+    network: z.enum(NETWORKS).nullable().optional(),
+    currency: z.string().trim().max(80).nullable().optional(),
+    rules: productRulesPatch.optional(),
+  })
+  .strict();
+
+export const institutionPatch = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    type: z.enum(INSTITUTION_TYPES).optional(),
+  })
+  .strict();
+
+export const archiveInput = z.object({ archived: z.boolean().default(true) });
 
 const accountBase = z.object({
   kind: z.enum(ACCOUNT_KINDS).default("credit_card"),

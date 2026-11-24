@@ -4,7 +4,7 @@ import type { z } from "zod";
 import { bonuses, offers, type Offer } from "../db/schema";
 import type { claimOfferInput, offerInput, offerPatch } from "../schemas";
 import { createAccount } from "./accounts";
-import { getProduct, listInstitutions, listProducts } from "./catalog";
+import { getActiveProduct, listInstitutions, listProducts } from "./catalog";
 import { BadRequestError, NotFoundError, newId, nowIso, type ServiceContext } from "./context";
 import { buildHistory } from "./eligibility";
 
@@ -19,7 +19,7 @@ async function requireOffer(ctx: ServiceContext, id: string) {
 export async function createOffer(ctx: ServiceContext, input: z.infer<typeof offerInput>) {
   let institutionId = input.institutionId ?? null;
   if (input.productId) {
-    const p = await getProduct(ctx, input.productId);
+    const p = await getActiveProduct(ctx, input.productId);
     if (p.kind !== input.kind) throw new BadRequestError(`Product ${p.id} is a ${p.kind}, not a ${input.kind}`);
     institutionId = p.institutionId;
   } else {
@@ -56,7 +56,7 @@ export async function listOpportunities(ctx: ServiceContext, opts: { kind?: stri
     ctx.db.select().from(offers).where(eq(offers.ownerId, ctx.ownerId)).orderBy(desc(offers.updatedAt)),
     buildHistory(ctx),
   ]);
-  const [instRows, productRows] = await Promise.all([listInstitutions(ctx), listProducts(ctx)]);
+  const [instRows, productRows] = await Promise.all([listInstitutions(ctx), listProducts(ctx, { includeArchived: true })]);
   const insts = new Map(instRows.map((i) => [i.id, i.name]));
   const products = new Map(productRows.map((p) => [p.id, p]));
   const list = rows

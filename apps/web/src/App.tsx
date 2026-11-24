@@ -4,6 +4,7 @@ import { AccountsPage } from "./pages/Accounts";
 import { BenefitsPage } from "./pages/Benefits";
 import { BonusesPage } from "./pages/Bonuses";
 import { MorePage } from "./pages/More";
+import { CatalogPage } from "./pages/Catalog";
 import { OpportunitiesPage } from "./pages/Opportunities";
 import { DashboardPage } from "./pages/Dashboard";
 import { EligibilityPage } from "./pages/Eligibility";
@@ -20,6 +21,7 @@ export function App() {
   else if (path.startsWith("/more")) page = <MorePage />;
   else if (path.startsWith("/eligibility")) page = <EligibilityPage />;
   else if (path.startsWith("/settings")) page = <SettingsPage />;
+  else if (path.startsWith("/catalog")) page = <CatalogPage />;
   else page = <DashboardPage />;
   return <Layout>{page}</Layout>;
 }
