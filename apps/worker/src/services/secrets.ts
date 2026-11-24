@@ -18,7 +18,7 @@ export const REVEAL_WINDOW_MIN = 10;
 
 export class ReauthRequiredError extends Error {
   constructor() {
-    super("Please sign in again to reveal card details (login must be within the last 15 minutes)");
+    super("Please sign in again (login must be within the last 15 minutes)");
     this.name = "ReauthRequiredError";
   }
 }
@@ -102,6 +102,10 @@ export async function writeSecret(ctx: ServiceContext, env: Env, accountId: stri
 
 export function isRecentLogin(identity: Pick<Identity, "iat">, nowSec = Math.floor(Date.now() / 1000)) {
   return typeof identity.iat === "number" && nowSec - identity.iat <= REVEAL_MAX_LOGIN_AGE_SEC && identity.iat <= nowSec + 60;
+}
+
+export function requireRecentLogin(identity: Pick<Identity, "iat">) {
+  if (!isRecentLogin(identity)) throw new ReauthRequiredError();
 }
 
 export async function revealSecret(ctx: ServiceContext, env: Env, accountId: string, identity: Identity) {

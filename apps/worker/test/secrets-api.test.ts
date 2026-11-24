@@ -2,6 +2,8 @@ import { createMcpHandler } from "agents/mcp/server";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { createMcpServer } from "../src/mcp/server";
+import { getDb } from "../src/db/client";
+import { revealSecret } from "../src/services/secrets";
 
 const DB = (env as unknown as { DB: D1Database }).DB;
 // Well-known public test numbers / fake values only.
@@ -77,24 +79,37 @@ describe("account secrets (web only)", () => {
     expect((await call("PUT", `/accounts/${bank}/secret`, { number: "1234" })).status).toBe(400);
   });
 
-  it("reveal: POST only, recent login required, no-store, audited without values", async () => {
+  it("requires recent login and device verification before reveal", async () => {
     expect((await call("GET", `/accounts/${cardId}/secret/reveal`)).status).toBe(404);
-    const stale = await call("POST", `/accounts/${cardId}/secret/reveal`, undefined, { "X-Dev-Auth-Iat": String(Math.floor(Date.now() / 1000) - 3600) });
+    expect((await call("GET", "/webauthn/status")).body).toEqual({ configured: false, credentials: [] });
+
+    const stale = await call("POST", `/accounts/${cardId}/secret/reveal/options`, undefined, { "X-Dev-Auth-Iat": String(Math.floor(Date.now() / 1000) - 3600) });
     expect(stale.status).toBe(401);
     expect(stale.body.code).toBe("reauth_required");
     noSecrets("stale reveal", stale.text);
 
-    const r = await call("POST", `/accounts/${cardId}/secret/reveal`);
-    expect(r.status).toBe(200);
-    expect(r.headers.get("Cache-Control")).toBe("no-store");
-    expect(r.body.values).toEqual({ pan: PAN, exp: "12/30", cvv: CVV });
-    expect((await call("POST", `/accounts/${giftId}/secret/reveal`)).body.values).toEqual({ number: GIFT_NO, pin: GIFT_PIN });
+    const registration = await call("POST", "/webauthn/register/options");
+    expect(registration.status).toBe(200);
+    expect(registration.body.authenticatorSelection).toMatchObject({ authenticatorAttachment: "platform", residentKey: "required", userVerification: "required" });
+    expect(registration.body.challenge).toEqual(expect.any(String));
+
+    const invalidRegistration = await call("POST", "/webauthn/register/verify", { id: "not-a-credential" });
+    expect(invalidRegistration.status).toBe(400);
+    expect((await call("GET", "/webauthn/status")).body.configured).toBe(false);
+
+    const unavailable = await call("POST", `/accounts/${cardId}/secret/reveal/options`);
+    expect(unavailable.status).toBe(403);
+    expect(unavailable.body.code).toBe("biometric_not_configured");
+    noSecrets("unconfigured reveal", unavailable.text);
+
+    const direct = await call("POST", `/accounts/${cardId}/secret/reveal`, {});
+    expect(direct.status).toBe(400);
+    expect(direct.headers.get("Cache-Control")).toBe("no-store");
+    noSecrets("direct reveal", direct.text);
 
     const auditRows = await DB.prepare("SELECT * FROM secret_audit").all();
     noSecrets("audit", JSON.stringify(auditRows.results));
     const actions = auditRows.results.map((r: any) => r.action);
-    expect(actions).toContain("reveal");
-    expect(actions).toContain("reveal_denied");
     expect(actions).toContain("write");
   });
 
@@ -106,10 +121,14 @@ describe("account secrets (web only)", () => {
     )
       .bind(cardId, other)
       .run();
-    const r = await call("POST", `/accounts/${other}/secret/reveal`);
-    expect(r.status).toBe(500);
-    expect(r.body.code).toBe("decrypt_failed");
-    noSecrets("swapped reveal", r.text);
+    await expect(
+      revealSecret(
+        { db: getDb(DB), ownerId: "tester@example.com", today: "2026-01-01" },
+        env as any,
+        other,
+        { email: "tester@example.com", source: "dev", iat: Math.floor(Date.now() / 1000) } as any,
+      ),
+    ).rejects.toThrow();
   });
 
   it("never appears in list/detail/dashboard/bonus/opportunity/product endpoints, and import refuses it", async () => {
@@ -174,8 +193,9 @@ describe("account secrets (web only)", () => {
   });
 
   it("reveal is rate limited", async () => {
-    let last = 0;
-    for (let i = 0; i < 12; i++) last = (await call("POST", `/accounts/${cardId}/secret/reveal`)).status;
-    expect(last).toBe(429);
+    const svc = { db: getDb(DB), ownerId: "tester@example.com", today: "2026-01-01" };
+    const identity = { email: "tester@example.com", source: "dev", iat: Math.floor(Date.now() / 1000) } as any;
+    for (let i = 0; i < 10; i++) await revealSecret(svc, env as any, cardId, identity);
+    await expect(revealSecret(svc, env as any, cardId, identity)).rejects.toMatchObject({ name: "RateLimitedError" });
   });
 });

@@ -1,8 +1,10 @@
+import { browserSupportsWebAuthn, startRegistration, type PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { InstallCard } from "../components/InstallApp";
 import { Badge, Button, Card, ErrorText, Input, Select, Textarea } from "../components/ui";
 import { t } from "../i18n";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { useMe, useMutate } from "../lib/queries";
 import { Link } from "../lib/router";
 
@@ -23,6 +25,7 @@ export function SettingsPage() {
             {me.data?.email ?? "…"} {me.data && <Badge>{me.data.source}</Badge>}
           </p>
         </Card>
+        <BiometricCard />
         <InstallCard />
         <ImportCard />
       </div>
@@ -34,6 +37,90 @@ export function SettingsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+interface WebAuthnStatus {
+  configured: boolean;
+  credentials: { id: string; deviceType: string; backedUp: boolean; createdAt: string; lastUsedAt: string | null }[];
+}
+
+function BiometricCard() {
+  const qc = useQueryClient();
+  const status = useQuery({ queryKey: ["webauthn-status"], queryFn: () => api.get<WebAuthnStatus>("/webauthn/status") });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const supported = browserSupportsWebAuthn();
+  const reauth = error instanceof ApiError && error.code === "reauth_required" ? error : null;
+
+  const register = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const options = await api.post<PublicKeyCredentialCreationOptionsJSON>("/webauthn/register/options");
+      const response = await startRegistration({ optionsJSON: options });
+      await api.post<WebAuthnStatus>("/webauthn/register/verify", response);
+      await qc.invalidateQueries({ queryKey: ["webauthn-status"] });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm(t("settings.biometricRemoveConfirm"))) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.del(`/webauthn/credentials/${encodeURIComponent(id)}`);
+      await qc.invalidateQueries({ queryKey: ["webauthn-status"] });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card
+      title={t("settings.biometric")}
+      action={
+        supported && (
+          <Button size="sm" onClick={register} disabled={busy}>
+            {status.data?.configured ? t("settings.biometricAdd") : t("settings.biometricSetup")}
+          </Button>
+        )
+      }
+    >
+      <p className="text-sm text-muted">{t("settings.biometricHint")}</p>
+      {!supported && <p className="mt-2 text-sm text-warn">{t("settings.biometricUnsupported")}</p>}
+      {status.data?.credentials.map((credential) => (
+        <div key={credential.id} className="mt-3 flex items-center justify-between gap-3 rounded-[var(--radius-row)] bg-sunken px-3 py-2">
+          <div>
+            <p className="text-sm font-medium">{t("settings.biometricDevice")}</p>
+            <p className="text-xs text-muted">
+              {t("settings.biometricAdded", { date: new Date(credential.createdAt).toLocaleDateString("zh-CN") })}
+              {credential.lastUsedAt ? ` · ${t("settings.biometricLastUsed", { date: new Date(credential.lastUsedAt).toLocaleDateString("zh-CN") })}` : ""}
+            </p>
+          </div>
+          <Button size="sm" variant="ghost" onClick={() => remove(credential.id)} disabled={busy}>
+            {t("common.delete")}
+          </Button>
+        </div>
+      ))}
+      {status.data && !status.data.configured && supported && <p className="mt-2 text-sm text-warn">{t("settings.biometricNotConfigured")}</p>}
+      {reauth ? (
+        <div className="mt-2 flex items-center gap-2 text-sm text-warn">
+          {t("sec.reauth")}
+          <Button size="sm" onClick={() => (window.location.href = reauth.reauthUrl ?? "/cdn-cgi/access/logout")}>
+            {t("sec.reauthButton")}
+          </Button>
+        </div>
+      ) : (
+        <ErrorText error={error ?? status.error} />
+      )}
+    </Card>
   );
 }
 

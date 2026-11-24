@@ -36,6 +36,8 @@ import { checkAllProducts, checkProductEligibility, getFive24 } from "../service
 import { csvToImportPayload, importHistory } from "../services/import";
 import * as secrets from "../services/secrets";
 import { RateLimitedError, ReauthRequiredError } from "../services/secrets";
+import * as webauthn from "../services/webauthn";
+import { BiometricNotConfiguredError } from "../services/webauthn";
 import { DecryptError, SecretsUnavailableError } from "../secrets/crypto";
 import * as offersSvc from "../services/offers";
 
@@ -54,6 +56,14 @@ async function body<T extends ZodType>(c: Context, schema: T): Promise<z.infer<T
   return r.data;
 }
 
+async function jsonBody(c: Context): Promise<unknown> {
+  try {
+    return await c.req.json();
+  } catch {
+    throw new BadRequestError("Request body must be JSON");
+  }
+}
+
 const asOfParam = (c: Context) => {
   const v = c.req.query("asOf");
   if (v === undefined) return undefined;
@@ -68,6 +78,7 @@ export function createApi() {
     c.header("Cache-Control", "no-store");
     if (err instanceof AuthError) return c.json({ error: err.message }, err.status);
     if (err instanceof ReauthRequiredError) return c.json({ error: err.message, code: "reauth_required", reauthUrl: "/cdn-cgi/access/logout" }, 401);
+    if (err instanceof BiometricNotConfiguredError) return c.json({ error: err.message, code: "biometric_not_configured" }, 403);
     if (err instanceof RateLimitedError) return c.json({ error: err.message, code: "rate_limited" }, 429);
     if (err instanceof SecretsUnavailableError) return c.json({ error: err.message, code: err.status === "missing" ? "key_missing" : "key_invalid" }, 503);
     if (err instanceof DecryptError) return c.json({ error: err.message, code: "decrypt_failed" }, 500);
@@ -97,6 +108,19 @@ export function createApi() {
   });
 
   // Account secrets (web only; never exposed through MCP, list endpoints or import/export)
+  api.get("/webauthn/status", async (c) => c.json(await webauthn.status(c.var.svc)));
+  api.post("/webauthn/register/options", async (c) => {
+    secrets.requireRecentLogin(c.var.identity);
+    return c.json(await webauthn.registrationOptions(c.var.svc, c.req.raw));
+  });
+  api.post("/webauthn/register/verify", async (c) => {
+    secrets.requireRecentLogin(c.var.identity);
+    return c.json(await webauthn.verifyRegistration(c.var.svc, c.req.raw, await jsonBody(c)));
+  });
+  api.delete("/webauthn/credentials/:id", async (c) => {
+    secrets.requireRecentLogin(c.var.identity);
+    return c.json(await webauthn.deleteCredential(c.var.svc, c.req.param("id")));
+  });
   api.get("/secrets/status", async (c) => c.json(await secrets.secretsStatus(c.env)));
   api.post("/secrets/rotate", async (c) => c.json(await secrets.rotateSecrets(c.var.svc, c.env)));
   api.get("/accounts/:id/secret", async (c) => c.json(await secrets.getSecretMeta(c.var.svc, c.env, c.req.param("id"))));
@@ -109,7 +133,13 @@ export function createApi() {
     }
     return c.json(await secrets.writeSecret(c.var.svc, c.env, c.req.param("id"), json));
   });
-  api.post("/accounts/:id/secret/reveal", async (c) => c.json(await secrets.revealSecret(c.var.svc, c.env, c.req.param("id"), c.var.identity)));
+  api.post("/accounts/:id/secret/reveal/options", async (c) => {
+    secrets.requireRecentLogin(c.var.identity);
+    return c.json(await webauthn.authenticationOptions(c.var.svc, c.req.raw, c.req.param("id")));
+  });
+  api.post("/accounts/:id/secret/reveal", async (c) =>
+    c.json(await webauthn.authenticateAndReveal(c.var.svc, c.env, c.req.raw, c.req.param("id"), c.var.identity, await jsonBody(c))),
+  );
   api.delete("/accounts/:id/secret", async (c) => c.json(await secrets.deleteSecret(c.var.svc, c.req.param("id"))));
 
   api.get("/me", (c) => c.json({ email: c.var.identity.email, source: c.var.identity.source }));
