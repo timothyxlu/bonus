@@ -1,8 +1,30 @@
 import { CATALOG_PRODUCTS, checkEligibility, type HistoryAccount } from "@bonus/core";
 import { describe, expect, it } from "vitest";
 import { ruleMessage, t } from "../src/i18n";
+import { accountCreationMessageKey, institutionMessageKey, institutionsForAccountKind } from "../src/lib/accountForm";
+import type { Institution } from "../src/lib/types";
 
 describe("i18n", () => {
+  it("uses gift-card-specific creation and merchant labels", () => {
+    expect(t(accountCreationMessageKey("gift_card"))).toBe("新增礼卡");
+    expect(t(institutionMessageKey("gift_card"))).toBe("商户");
+    expect(t(accountCreationMessageKey("credit_card"))).toBe("新增账户");
+    expect(t(accountCreationMessageKey("bank_account"))).toBe("新增账户");
+    expect(t(institutionMessageKey("credit_card"))).toBe("机构");
+    expect(t(institutionMessageKey("bank_account"))).toBe("机构");
+  });
+
+  it("only offers merchants to gift cards without changing other account flows", () => {
+    const institutions = [
+      { id: "issuer", name: "Issuer", type: "issuer" },
+      { id: "bank", name: "Bank", type: "bank" },
+      { id: "merchant", name: "Merchant", type: "merchant" },
+    ] as Institution[];
+    expect(institutionsForAccountKind(institutions, "gift_card").map((institution) => institution.id)).toEqual(["merchant"]);
+    expect(institutionsForAccountKind(institutions, "credit_card")).toEqual(institutions);
+    expect(institutionsForAccountKind(institutions, "bank_account")).toEqual(institutions);
+  });
+
   it("interpolates params", () => {
     expect(t("dash.nextDrop", { date: "2027-01-01" })).toBe("下次减少：2027-01-01");
   });

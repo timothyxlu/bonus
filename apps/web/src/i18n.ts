@@ -104,6 +104,7 @@ const zhCN = {
 
   "acct.title": "账户",
   "acct.new": "新增账户",
+  "acct.newGiftCard": "新增礼卡",
   "acct.edit": "编辑账户",
   "acct.empty": "这个类别还没有账户。点“新增账户”，或在设置里导入历史。",
   "acct.col.name": "名称",
@@ -122,6 +123,7 @@ const zhCN = {
   "acct.newProductName": "新产品名称",
   "acct.newProductHint": "会加入你的产品库，之后可在“产品库”里补充规则字段",
   "acct.institution": "机构",
+  "acct.merchant": "商户",
   "acct.nickname": "昵称",
   "acct.last4": "卡号尾号",
   "acct.last4.bank": "账号尾号",

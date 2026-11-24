@@ -130,6 +130,20 @@ describe("REST API", () => {
       details: { accountType: "checking" },
     });
     expect(bank.status).toBe(201);
+    const invalidGift = await call("POST", "/accounts", {
+      kind: "gift_card",
+      institutionId: inst.body.id,
+      nickname: "Not a merchant",
+    });
+    expect(invalidGift.status).toBe(400);
+    expect(invalidGift.body.error).toMatch(/merchant institution/);
+    const invalidGiftProduct = await call("POST", "/products", {
+      institutionId: inst.body.id,
+      name: "Invalid gift product",
+      kind: "gift_card",
+    });
+    expect(invalidGiftProduct.status).toBe(201);
+    expect((await call("POST", "/accounts", { kind: "gift_card", productId: invalidGiftProduct.body.id })).status).toBe(400);
     const year = new Date().toISOString().slice(0, 4);
     await call("POST", `/accounts/${bank.body.id}/bonuses`, { requirementType: "direct_deposit", amountRequired: 500, deadline: "2099-01-01", rewardAmount: 300, rewardUnit: "USD" });
     await call("POST", `/accounts/${bank.body.id}/bonuses`, { requirementType: "balance", rewardAmount: 200, rewardUnit: "USD", status: "posted", earnedAt: `${year}-01-15` });
@@ -137,6 +151,7 @@ describe("REST API", () => {
     const gift = await call("POST", "/institutions", { name: "Example Grocer", type: "merchant" });
     const gc = await call("POST", "/accounts", { kind: "gift_card", institutionId: gift.body.id, nickname: "Grocer $100", details: { faceValue: 100, purchasePrice: 85 } });
     expect(gc.status).toBe(201);
+    expect((await call("PATCH", `/accounts/${gc.body.id}`, { institutionId: inst.body.id })).status).toBe(400);
 
     const dash = await call("GET", "/dashboard");
     expect(dash.body.byKind.bank_account).toMatchObject({ open: 1, activeBonuses: 1, postedThisYear: 1 });
