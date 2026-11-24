@@ -13,6 +13,8 @@ export default defineConfig({
           ACCESS_TEAM_DOMAIN: "https://example-team.cloudflareaccess.com",
           ACCESS_AUD: "test-aud",
           MCP_RESOURCE: "http://localhost/mcp",
+          // Test-only key (32 bytes of 0x2a), not used anywhere else.
+          CARD_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Array(32).fill(42))),
         },
       },
     })),

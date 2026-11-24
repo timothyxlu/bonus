@@ -16,6 +16,16 @@ export interface Env {
   ALLOWED_EMAILS?: string;
 
   /**
+   * Card / gift-card secret encryption key: 32 random bytes, base64 (openssl rand -base64 32).
+   * Missing or malformed => the secrets feature is disabled (never plaintext).
+   */
+  CARD_ENCRYPTION_KEY?: string;
+  /** Id stored with each ciphertext for the current key (default "k1"). Change it when rotating. */
+  CARD_ENCRYPTION_KEY_ID?: string;
+  /** Previous keys still accepted for decryption during rotation: "kid:base64,kid:base64". */
+  CARD_ENCRYPTION_KEYS_OLD?: string;
+
+  /**
    * Local development only: identity used when the request host is localhost.
    * Ignored for any other hostname.
    */

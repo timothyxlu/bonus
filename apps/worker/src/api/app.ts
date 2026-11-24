@@ -30,6 +30,9 @@ import { BadRequestError, NotFoundError, type ServiceContext } from "../services
 import { getDashboard } from "../services/dashboard";
 import { checkAllProducts, checkProductEligibility, getFive24 } from "../services/eligibility";
 import { csvToImportPayload, importHistory } from "../services/import";
+import * as secrets from "../services/secrets";
+import { RateLimitedError, ReauthRequiredError } from "../services/secrets";
+import { DecryptError, SecretsUnavailableError } from "../secrets/crypto";
 import * as offersSvc from "../services/offers";
 
 type Vars = { identity: Identity; svc: ServiceContext };
@@ -58,10 +61,16 @@ export function createApi() {
   const api = new Hono<ApiEnv>().basePath("/api");
 
   api.onError((err, c) => {
+    c.header("Cache-Control", "no-store");
     if (err instanceof AuthError) return c.json({ error: err.message }, err.status);
+    if (err instanceof ReauthRequiredError) return c.json({ error: err.message, code: "reauth_required", reauthUrl: "/cdn-cgi/access/logout" }, 401);
+    if (err instanceof RateLimitedError) return c.json({ error: err.message, code: "rate_limited" }, 429);
+    if (err instanceof SecretsUnavailableError) return c.json({ error: err.message, code: err.status === "missing" ? "key_missing" : "key_invalid" }, 503);
+    if (err instanceof DecryptError) return c.json({ error: err.message, code: "decrypt_failed" }, 500);
     if (err instanceof NotFoundError) return c.json({ error: err.message }, 404);
     if (err instanceof BadRequestError) return c.json({ error: err.message }, 400);
-    console.error(err);
+    // Log the error type/message only; request bodies (which may hold card secrets) are never logged.
+    console.error(`${(err as Error).name}: ${(err as Error).message}`);
     return c.json({ error: "Internal error" }, 500);
   });
 
@@ -75,6 +84,29 @@ export function createApi() {
     c.set("svc", { db: getDb(c.env.DB), ownerId: identity.email, today: today() });
     await next();
   });
+
+  // Personal data: never cache any API response (browser, proxies, service worker).
+  api.use("*", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store");
+    c.header("Pragma", "no-cache");
+  });
+
+  // Account secrets (web only; never exposed through MCP, list endpoints or import/export)
+  api.get("/secrets/status", async (c) => c.json(await secrets.secretsStatus(c.env)));
+  api.post("/secrets/rotate", async (c) => c.json(await secrets.rotateSecrets(c.var.svc, c.env)));
+  api.get("/accounts/:id/secret", async (c) => c.json(await secrets.getSecretMeta(c.var.svc, c.env, c.req.param("id"))));
+  api.put("/accounts/:id/secret", async (c) => {
+    let json: unknown;
+    try {
+      json = await c.req.json();
+    } catch {
+      throw new BadRequestError("Request body must be JSON");
+    }
+    return c.json(await secrets.writeSecret(c.var.svc, c.env, c.req.param("id"), json));
+  });
+  api.post("/accounts/:id/secret/reveal", async (c) => c.json(await secrets.revealSecret(c.var.svc, c.env, c.req.param("id"), c.var.identity)));
+  api.delete("/accounts/:id/secret", async (c) => c.json(await secrets.deleteSecret(c.var.svc, c.req.param("id"))));
 
   api.get("/me", (c) => c.json({ email: c.var.identity.email, source: c.var.identity.source }));
 
