@@ -1,4 +1,4 @@
-import { useEffect, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import { useEffect, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
 import { t } from "../i18n";
 import { cx } from "../lib/format";
 
@@ -39,9 +39,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea {...props} className={cx(fieldCls, width(props.className), props.className)} />;
 }
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={cx(fieldCls, "h-11 pr-8 sm:h-10", width(props.className), props.className)} />;
-}
+export { Select } from "./Select";
 
 export function Field({ label, hint, children, className }: { label: string; hint?: string; children: ReactNode; className?: string }) {
   return (
