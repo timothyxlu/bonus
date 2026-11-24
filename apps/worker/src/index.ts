@@ -4,6 +4,7 @@ import { createApi } from "./api/app";
 import { handleAuthorize, MCP_SCOPE } from "./auth/mcp-authorize";
 import type { Env, McpProps } from "./env";
 import { createMcpServer } from "./mcp/server";
+import { withSecurityHeaders } from "./security-headers";
 
 const api = createApi();
 
@@ -58,7 +59,7 @@ function provider(env: Env) {
 }
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    return provider(env).fetch(request, env, ctx);
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    return withSecurityHeaders(await provider(env).fetch(request, env, ctx));
   },
 } satisfies ExportedHandler<Env>;
