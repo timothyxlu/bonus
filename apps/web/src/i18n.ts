@@ -4,7 +4,7 @@
  */
 const zhCN = {
   appName: "Bonus",
-  tagline: "开户奖励猎人",
+  tagline: "奖励猎人",
 
   "nav.dashboard": "概览",
   "nav.accounts": "账户",
