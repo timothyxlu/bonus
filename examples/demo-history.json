@@ -1,0 +1,371 @@
+{
+  "version": 1,
+  "_comment": "FICTIONAL demo data for local development and screenshots. Not anyone's real history. Offer amounts are illustrative examples, not current offers.",
+  "accounts": [
+    {
+      "product": "chase-sapphire-preferred",
+      "last4": "0001",
+      "appliedAt": "2025-05-28",
+      "openedAt": "2025-06-01",
+      "status": "open",
+      "bonuses": [
+        {
+          "description": "75k after $5k in 3 months",
+          "amountRequired": 5000,
+          "progress": 5000,
+          "deadline": "2025-09-01",
+          "rewardAmount": 75000,
+          "rewardUnit": "points",
+          "status": "posted",
+          "earnedAt": "2025-08-10"
+        }
+      ],
+      "benefits": [
+        {
+          "name": "DoorDash 月度抵扣",
+          "amount": 10,
+          "period": "monthly"
+        },
+        {
+          "name": "酒店年度抵扣",
+          "amount": 50,
+          "period": "cardmember_year"
+        }
+      ]
+    },
+    {
+      "product": "amex-gold",
+      "last4": "0002",
+      "openedAt": "2026-09-20",
+      "status": "open",
+      "bonuses": [
+        {
+          "description": "60k after $6k in 6 months",
+          "amountRequired": 6000,
+          "progress": 2350,
+          "deadline": "2027-03-20",
+          "rewardAmount": 60000,
+          "rewardUnit": "points"
+        }
+      ],
+      "benefits": [
+        {
+          "name": "Uber Cash",
+          "amount": 10,
+          "period": "monthly"
+        },
+        {
+          "name": "Dining credit",
+          "amount": 10,
+          "period": "monthly"
+        },
+        {
+          "name": "Resy credit",
+          "amount": 50,
+          "period": "semiannual"
+        }
+      ]
+    },
+    {
+      "product": "chase-ink-preferred",
+      "nickname": "Ink 商业卡",
+      "last4": "0003",
+      "openedAt": "2026-10-15",
+      "status": "open",
+      "bonuses": [
+        {
+          "description": "90k after $8k in 3 months",
+          "amountRequired": 8000,
+          "progress": 6100,
+          "deadline": "2026-12-05",
+          "rewardAmount": 90000,
+          "rewardUnit": "points"
+        }
+      ]
+    },
+    {
+      "product": "citi-strata-premier",
+      "last4": "0004",
+      "openedAt": "2025-02-10",
+      "status": "open",
+      "bonuses": [
+        {
+          "amountRequired": 4000,
+          "progress": 4000,
+          "rewardAmount": 60000,
+          "rewardUnit": "points",
+          "status": "posted",
+          "earnedAt": "2025-04-02"
+        }
+      ]
+    },
+    {
+      "product": "capital-one-venture-x",
+      "last4": "0005",
+      "openedAt": "2025-11-02",
+      "status": "open",
+      "benefits": [
+        {
+          "name": "Travel credit",
+          "amount": 300,
+          "period": "cardmember_year"
+        }
+      ]
+    },
+    {
+      "product": "discover-it-cash-back",
+      "last4": "0006",
+      "openedAt": "2024-12-15",
+      "status": "open"
+    },
+    {
+      "product": "boa-customized-cash",
+      "last4": "0007",
+      "openedAt": "2026-03-08",
+      "status": "open",
+      "bonuses": [
+        {
+          "amountRequired": 1000,
+          "progress": 1000,
+          "rewardAmount": 200,
+          "rewardUnit": "USD",
+          "status": "posted",
+          "earnedAt": "2026-05-01"
+        }
+      ]
+    },
+    {
+      "product": "chase-freedom-unlimited",
+      "last4": "0008",
+      "openedAt": "2021-04-01",
+      "closedAt": "2024-01-15",
+      "status": "closed"
+    },
+    {
+      "product": "amex-platinum",
+      "last4": "0009",
+      "openedAt": "2026-11-10",
+      "status": "open",
+      "bonuses": [
+        {
+          "description": "Welcome offer",
+          "amountRequired": 8000,
+          "progress": 900,
+          "deadline": "2027-05-10",
+          "rewardAmount": 125000,
+          "rewardUnit": "points"
+        }
+      ],
+      "benefits": [
+        {
+          "name": "Uber Cash",
+          "amount": 15,
+          "period": "monthly"
+        },
+        {
+          "name": "Airline fee credit",
+          "amount": 200,
+          "period": "annual"
+        }
+      ]
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Chase",
+      "nickname": "Total Checking",
+      "last4": "1101",
+      "openedAt": "2026-10-20",
+      "status": "open",
+      "details": {
+        "accountType": "checking"
+      },
+      "bonuses": [
+        {
+          "description": "$300 after $500 direct deposit in 90 days",
+          "requirementType": "direct_deposit",
+          "amountRequired": 500,
+          "progress": 0,
+          "deadline": "2027-01-18",
+          "rewardAmount": 300,
+          "rewardUnit": "USD"
+        }
+      ]
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Example Credit Union",
+      "nickname": "High-yield Savings",
+      "last4": "2202",
+      "openedAt": "2026-02-01",
+      "status": "open",
+      "details": {
+        "accountType": "savings"
+      },
+      "bonuses": [
+        {
+          "description": "$200 for keeping $15k for 60 days",
+          "requirementType": "balance",
+          "amountRequired": 15000,
+          "progress": 15000,
+          "rewardAmount": 200,
+          "rewardUnit": "USD",
+          "status": "posted",
+          "earnedAt": "2026-05-01"
+        }
+      ]
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Example Online Bank",
+      "nickname": "Online Checking",
+      "openedAt": "2026-11-05",
+      "status": "open",
+      "details": {
+        "accountType": "checking"
+      },
+      "bonuses": [
+        {
+          "description": "$400 after 2 direct deposits",
+          "requirementType": "direct_deposit",
+          "amountRequired": 2000,
+          "progress": 1000,
+          "deadline": "2027-02-03",
+          "rewardAmount": 400,
+          "rewardUnit": "USD"
+        }
+      ]
+    },
+    {
+      "kind": "gift_card",
+      "issuer": "Example Grocer",
+      "nickname": "Grocer $100",
+      "openedAt": "2026-11-02",
+      "status": "open",
+      "details": {
+        "faceValue": 100,
+        "purchasePrice": 85
+      }
+    },
+    {
+      "kind": "gift_card",
+      "issuer": "Example Airline",
+      "nickname": "Airline $250",
+      "openedAt": "2026-08-15",
+      "status": "open",
+      "details": {
+        "faceValue": 250,
+        "purchasePrice": 225
+      }
+    }
+  ],
+  "offers": [
+    {
+      "kind": "credit_card",
+      "product": "amex-blue-business-plus",
+      "title": "示例：Blue Business Plus 15k",
+      "rewardAmount": 15000,
+      "rewardUnit": "points",
+      "amountRequired": 3000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "boa-premium-rewards",
+      "title": "示例：BoA Premium Rewards 60k",
+      "rewardAmount": 60000,
+      "rewardUnit": "points",
+      "centsPerPoint": 1.0,
+      "amountRequired": 4000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "chase-ink-cash",
+      "title": "示例：Ink Cash 75k",
+      "rewardAmount": 75000,
+      "rewardUnit": "points",
+      "amountRequired": 6000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "citi-strata-premier",
+      "title": "示例：Strata Premier 75k",
+      "rewardAmount": 75000,
+      "rewardUnit": "points",
+      "amountRequired": 4000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "capital-one-venture",
+      "title": "示例：Venture 75k",
+      "rewardAmount": 75000,
+      "rewardUnit": "miles",
+      "amountRequired": 4000,
+      "windowMonths": 3,
+      "feeWaivedFirstYear": false
+    },
+    {
+      "kind": "credit_card",
+      "product": "amex-delta-gold",
+      "title": "示例：Delta Gold 80k",
+      "rewardAmount": 80000,
+      "rewardUnit": "miles",
+      "amountRequired": 3000,
+      "windowMonths": 6,
+      "feeWaivedFirstYear": true
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Citi",
+      "title": "示例：Citi 支票账户 $325",
+      "rewardAmount": 325,
+      "rewardUnit": "USD",
+      "requirementType": "direct_deposit",
+      "amountRequired": 3000,
+      "windowMonths": 3,
+      "cooldownMonths": 12
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Chase",
+      "title": "示例：Chase 支票账户 $400",
+      "rewardAmount": 400,
+      "rewardUnit": "USD",
+      "requirementType": "direct_deposit",
+      "amountRequired": 1000,
+      "windowMonths": 3,
+      "cooldownMonths": 24
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Example Credit Union",
+      "title": "示例：信用社储蓄 $300",
+      "rewardAmount": 300,
+      "rewardUnit": "USD",
+      "requirementType": "balance",
+      "amountRequired": 25000,
+      "windowMonths": 3,
+      "cooldownMonths": 12
+    },
+    {
+      "kind": "gift_card",
+      "issuer": "Example Grocer",
+      "title": "示例：超市礼品卡 8 折",
+      "rewardAmount": 40,
+      "rewardUnit": "USD",
+      "amountRequired": 200,
+      "expiresAt": "2026-12-31"
+    },
+    {
+      "kind": "gift_card",
+      "issuer": "Example Airline",
+      "title": "示例：航空礼品卡 9 折",
+      "rewardAmount": 25,
+      "rewardUnit": "USD",
+      "amountRequired": 250,
+      "expiresAt": "2026-11-01"
+    }
+  ]
+}

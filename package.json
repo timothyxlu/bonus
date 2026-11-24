@@ -1,0 +1,17 @@
+{
+  "name": "bonus",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.18.2",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "pnpm --filter @bonus/web build",
+    "dev": "pnpm --parallel --filter @bonus/worker --filter @bonus/web dev",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "db:migrate:local": "pnpm --filter @bonus/worker db:migrate:local",
+    "db:seed:local": "pnpm --filter @bonus/worker db:seed:local",
+    "import:local": "node scripts/import-history.mjs"
+  }
+}

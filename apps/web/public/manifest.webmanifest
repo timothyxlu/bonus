@@ -1,0 +1,17 @@
+{
+  "name": "Bonus - 奖励猎人",
+  "short_name": "Bonus",
+  "description": "信用卡、银行开户、礼品卡折扣等各类奖励的追踪与资格检查",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a2733",
+  "theme_color": "#0a2733",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

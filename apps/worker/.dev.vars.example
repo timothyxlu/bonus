@@ -1,0 +1,5 @@
+# Copy to .dev.vars for local development (git-ignored).
+# Requests to localhost are authenticated as this user (ignored on any other host),
+# for /api and for the MCP /authorize consent page.
+DEV_USER_EMAIL=dev@example.com
+MCP_RESOURCE=http://localhost:8787/mcp
