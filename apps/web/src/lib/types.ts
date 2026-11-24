@@ -15,8 +15,10 @@ import type {
 export interface Institution {
   id: string;
   name: string;
-  type: string;
+  type: "issuer" | "bank" | "merchant";
   ownerId: string | null;
+  isCatalog: boolean;
+  customized: boolean;
 }
 
 export interface Product {
@@ -32,6 +34,9 @@ export interface Product {
   currency: string | null;
   rules: ProductRules;
   isCatalog: boolean;
+  customized: boolean;
+  archived: boolean;
+  accountCount?: number;
 }
 
 export interface Progress {

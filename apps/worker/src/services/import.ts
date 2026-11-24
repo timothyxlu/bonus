@@ -3,7 +3,7 @@ import { accounts, bonuses, benefits, events, institutions, offers } from "../db
 import { importPayload, offerInput, type ImportPayload } from "../schemas";
 import { createOffer } from "./offers";
 import { createAccount } from "./accounts";
-import { listInstitutions, listProducts, slug } from "./catalog";
+import { invalidateCatalog, listInstitutions, listProducts, slug } from "./catalog";
 import { BadRequestError, newId, type ServiceContext } from "./context";
 
 export interface ImportResult {
@@ -23,7 +23,7 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
   const parsed = importPayload.safeParse(raw);
   if (!parsed.success) throw new BadRequestError(`Invalid import payload: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
   const payload: ImportPayload = parsed.data;
-  const products = await listProducts(ctx);
+  const products = await listProducts(ctx, { includeArchived: true });
   const insts = await listInstitutions(ctx);
   const existing = await ctx.db.select().from(accounts).where(eq(accounts.ownerId, ctx.ownerId));
   const result: ImportResult = { dryRun: !!opts.dryRun, created: 0, offersCreated: 0, skipped: [], errors: [], createdIds: [] };
@@ -48,7 +48,8 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
         else if (!opts.dryRun) {
           const id = slug(issuer).replace(/-/g, "_");
           await ctx.db.insert(institutions).values({ id, ownerId: ctx.ownerId, name: issuer, type: "issuer" }).onConflictDoNothing();
-          insts.push({ id, ownerId: ctx.ownerId, name: issuer, type: "issuer", createdAt: "" });
+          invalidateCatalog(ctx);
+          insts.push({ id, ownerId: ctx.ownerId, name: issuer, type: "issuer", createdAt: "", isCatalog: false, customized: false });
           institutionId = id;
         } else institutionId = "(new)";
       }
@@ -102,7 +103,8 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
         if (!inst && !opts.dryRun) {
           const id = slug(issuer).replace(/-/g, "_");
           await ctx.db.insert(institutions).values({ id, ownerId: ctx.ownerId, name: issuer, type: rec.kind === "gift_card" ? "merchant" : rec.kind === "bank_account" ? "bank" : "issuer" }).onConflictDoNothing();
-          inst = { id, ownerId: ctx.ownerId, name: issuer, type: "issuer", createdAt: "" };
+          invalidateCatalog(ctx);
+          inst = { id, ownerId: ctx.ownerId, name: issuer, type: "issuer", createdAt: "", isCatalog: false, customized: false };
           insts.push(inst);
         }
         rec.institutionId = inst?.id ?? "(new)";

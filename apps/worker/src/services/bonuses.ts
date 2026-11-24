@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { accounts, benefits, benefitUses, bonuses, institutions, products } from "../db/schema";
 import type { benefitInput, benefitPatch, benefitUseInput, bonusInput, bonusPatch } from "../schemas";
 import { accountLabel } from "./accounts";
+import { catalogView } from "./catalog";
 import { NotFoundError, newId, nowIso, type ServiceContext } from "./context";
 
 async function requireAccount(ctx: ServiceContext, id: string) {
@@ -66,16 +67,21 @@ export async function listBonuses(ctx: ServiceContext, filter: BonusFilter = {})
         filter.kind ? eq(accounts.kind, filter.kind) : undefined,
       ),
     );
+  const view = await catalogView(ctx);
   return rows
-    .map((r) => ({
-      ...r.bonus,
-      ...bonusProgress(r.bonus, ctx.today),
-      accountLabel: accountLabel(r.account, r.productName),
-      productName: r.productName,
-      kind: r.account.kind,
-      institutionId: r.institutionId,
-      institutionName: r.institutionName,
-    }))
+    .map((r) => {
+      const productName = (r.account.productId && view.products.get(r.account.productId)?.name) || r.productName;
+      const institutionName = (r.institutionId && view.institutions.get(r.institutionId)?.name) || r.institutionName;
+      return {
+        ...r.bonus,
+        ...bonusProgress(r.bonus, ctx.today),
+        accountLabel: accountLabel(r.account, productName),
+        productName,
+        kind: r.account.kind,
+        institutionId: r.institutionId,
+        institutionName,
+      };
+    })
     .sort((a, b) =>
       a.active !== b.active
         ? a.active ? -1 : 1
@@ -152,6 +158,7 @@ export async function listBenefits(ctx: ServiceContext, opts: { accountId?: stri
       ),
     )
     .orderBy(asc(benefits.name));
+  const view = await catalogView(ctx);
   const uses = rows.length
     ? await ctx.db
         .select()
@@ -166,7 +173,7 @@ export async function listBenefits(ctx: ServiceContext, opts: { accountId?: stri
       return {
         ...r.benefit,
         ...status,
-        accountLabel: accountLabel(r.account, r.productName),
+        accountLabel: accountLabel(r.account, (r.account.productId && view.products.get(r.account.productId)?.name) || r.productName),
         uses: u.filter((x) => x.usedOn >= status.currentPeriod.start && x.usedOn < status.currentPeriod.end),
       };
     })

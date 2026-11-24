@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Badge, Button, Card, ErrorText, Field, Input, Select, Textarea } from "../components/ui";
+import { Badge, Button, Card, ErrorText, Input, Select, Textarea } from "../components/ui";
 import { t } from "../i18n";
 import { api } from "../lib/api";
-import { useInstitutions, useMe, useMutate } from "../lib/queries";
+import { useMe, useMutate } from "../lib/queries";
+import { Link } from "../lib/router";
 
 interface ImportResult {
   dryRun: boolean;
@@ -90,58 +91,23 @@ function ImportCard() {
 }
 
 function CatalogCard() {
-  const { data: institutions = [] } = useInstitutions();
   const [msg, setMsg] = useState("");
   const sync = useMutate(() => api.post<{ products: number }>("/catalog/sync"));
-  const [f, setF] = useState({ institutionId: "", name: "", ownerType: "personal", annualFee: "", family: "" });
-  const create = useMutate(() =>
-    api.post("/products", { institutionId: f.institutionId, name: f.name, ownerType: f.ownerType, annualFee: Number(f.annualFee || 0), family: f.family || null }),
-  );
   return (
-    <Card title={t("settings.catalog")} action={<Button size="sm" onClick={() => sync.mutate(undefined, { onSuccess: (r) => setMsg(t("settings.synced", { n: r.products })) })}>{t("settings.syncCatalog")}</Button>}>
+    <Card
+      title={t("settings.catalog")}
+      action={
+        <Button size="sm" onClick={() => sync.mutate(undefined, { onSuccess: (r) => setMsg(t("settings.synced", { n: r.products })) })}>
+          {t("settings.syncCatalog")}
+        </Button>
+      }
+    >
       {msg && <p className="mb-2 text-sm text-money">{msg}</p>}
-      <form
-        className="grid grid-cols-2 gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          create.mutate(undefined, { onSuccess: () => setF((s) => ({ ...s, name: "", annualFee: "", family: "" })) });
-        }}
-      >
-        <p className="col-span-2 text-xs font-semibold text-muted">{t("settings.customProduct")}</p>
-        <Field label={t("acct.institution")}>
-          <Select value={f.institutionId} onChange={(e) => setF((s) => ({ ...s, institutionId: e.target.value }))} required>
-            <option value="">—</option>
-            {institutions.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("settings.productName")}>
-          <Input value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))} required />
-        </Field>
-        <Field label={t("acct.ownerType")}>
-          <Select value={f.ownerType} onChange={(e) => setF((s) => ({ ...s, ownerType: e.target.value }))}>
-            <option value="personal">{t("ownerType.personal")}</option>
-            <option value="business">{t("ownerType.business")}</option>
-          </Select>
-        </Field>
-        <Field label={t("acct.col.fee")}>
-          <Input type="number" min="0" value={f.annualFee} onChange={(e) => setF((s) => ({ ...s, annualFee: e.target.value }))} />
-        </Field>
-        <Field label={t("settings.family")} className="col-span-2">
-          <Input value={f.family} onChange={(e) => setF((s) => ({ ...s, family: e.target.value }))} placeholder="chase_sapphire / amex_mr_charge / …" />
-        </Field>
-        <div className="col-span-2">
-          <ErrorText error={create.error ?? sync.error} />
-        </div>
-        <div className="col-span-2 flex justify-end">
-          <Button type="submit" variant="primary" disabled={create.isPending}>
-            {t("common.add")}
-          </Button>
-        </div>
-      </form>
+      <ErrorText error={sync.error} />
+      <p className="text-sm text-muted">{t("cat2.subtitle")}</p>
+      <Link to="/catalog" className="mt-2 inline-flex min-h-10 items-center text-sm font-medium text-brand hover:underline">
+        {t("cat2.manage")}
+      </Link>
     </Card>
   );
 }

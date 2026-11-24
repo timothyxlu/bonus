@@ -3,7 +3,8 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getDb } from "../db/client";
 import type { Env, McpProps } from "../env";
-import { accountInput, benefitUseInput, eventInput, isoDate, offerInput, offerPatch } from "../schemas";
+import { accountInput, accountPatch, benefitUseInput, eventInput, institutionInput, institutionPatch, isoDate, offerInput, offerPatch, productInput, productPatch } from "../schemas";
+import * as catalog from "../services/catalog";
 import * as offers from "../services/offers";
 import * as accounts from "../services/accounts";
 import * as bon from "../services/bonuses";
@@ -57,35 +58,132 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   server.registerTool(
     "list_products",
     {
-      description: "List catalog products (card products) and their ids, for use with add_account and check_eligibility.",
-      inputSchema: z.object({ institutionId: z.string().optional().describe("e.g. chase, amex, citi, boa, barclays") }),
+      description:
+        "Search the product catalog (seeded defaults plus the user's own products and edits). Returns ids for add_account, record_event (toProductId), add_offer and check_eligibility. If a product is missing, create it with add_product.",
+      inputSchema: z.object({
+        q: z.string().optional().describe("Free-text search over id, name, institution and family, e.g. 'hilton' or 'aadvantage'"),
+        institutionId: z.string().optional().describe("e.g. chase, amex, citi, boa, barclays, us_bank, wells_fargo"),
+        kind: z.enum(["credit_card", "bank_account", "gift_card"]).optional(),
+        includeArchived: z.boolean().optional(),
+      }),
       annotations: { readOnlyHint: true },
     },
-    tool(async ({ institutionId }) =>
-      (await listProducts(svc(), { institutionId })).map((p) => ({
+    tool(async (f) =>
+      (await listProducts(svc(), f)).map((p) => ({
         id: p.id,
         name: p.name,
+        institutionId: p.institutionId,
         institution: p.institutionName,
+        kind: p.kind,
         ownerType: p.ownerType,
         family: p.family,
         annualFee: p.annualFee,
+        currency: p.currency,
+        rules: p.rules,
+        source: p.isCatalog ? (p.customized ? "catalog (edited)" : "catalog") : "user",
+        archived: p.archived,
       })),
     ),
   );
 
   server.registerTool(
+    "list_institutions",
+    {
+      description: "List institutions (card issuers, banks, merchants) and their ids. Create a missing one with add_institution.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true },
+    },
+    tool(async () => (await catalog.listInstitutions(svc())).map((i) => ({ id: i.id, name: i.name, type: i.type, source: i.isCatalog ? "catalog" : "user" }))),
+  );
+
+  server.registerTool(
+    "add_institution",
+    {
+      description:
+        "Create an institution the catalog lacks (e.g. Synchrony, a credit union, a merchant). id is an optional lowercase slug ([a-z0-9_-], derived from the name if omitted); type is issuer (card issuer), bank, or merchant (gift cards).",
+      inputSchema: institutionInput,
+    },
+    tool(async (a) => catalog.createInstitution(svc(), a)),
+  );
+
+  server.registerTool(
+    "update_institution",
+    {
+      description: "Rename an institution or change its type. Editing a built-in institution stores a personal override; the shared default is not changed.",
+      inputSchema: institutionPatch.extend({ institutionId: z.string() }),
+    },
+    tool(async ({ institutionId, ...patch }) => catalog.updateInstitution(svc(), institutionId, patch)),
+  );
+
+  server.registerTool(
+    "add_product",
+    {
+      description: [
+        "Create a catalog product (e.g. a card the catalog lacks) so accounts, product changes and offers can use it.",
+        "Fields: institutionId (from list_institutions), name, kind (default credit_card), ownerType personal|business, annualFee (USD), network, currency (points programme, e.g. 'Hilton Honors'), family, id (optional slug; generated as <institution>-<name> if omitted).",
+        "family groups related products for issuer rules: chase_sapphire (Sapphire rule), amex_* ladders, citi_thankyou, citi_aadvantage, ...",
+        "rules (all optional): lifetimeBonus (Amex once-per-lifetime), familyRank (Amex family ladder: higher = more premium; having held a same-or-higher rank blocks lower ones), bonusCooldownMonths (+ cooldownScope 'product'|'family', e.g. Citi 48, Chase 24), isCharge (Amex charge card, excluded from the 5-credit-card limit), reportsToPersonal (business card that counts toward 5/24), currentHolderIneligible (default true).",
+      ].join(" "),
+      inputSchema: productInput,
+    },
+    tool(async (a) => catalog.createProduct(svc(), a)),
+  );
+
+  server.registerTool(
+    "update_product",
+    {
+      description:
+        "Edit a product: any of name, institutionId, ownerType, family, annualFee, network, currency, kind (only if no account uses it), and rules (partial: a value sets a rule, null clears it, omitted keeps it). Editing a built-in catalog product stores a personal override; the shared default and future catalog syncs do not overwrite it.",
+      inputSchema: productPatch.extend({ productId: z.string() }),
+    },
+    tool(async ({ productId, ...patch }) => catalog.updateProduct(svc(), productId, patch)),
+  );
+
+  server.registerTool(
+    "archive_product",
+    {
+      description:
+        "Archive (hide from pickers) or unarchive a product. Products are never deleted: accounts and history that reference an archived product keep working.",
+      inputSchema: z.object({ productId: z.string(), archived: z.boolean().default(true) }),
+    },
+    tool(async ({ productId, archived }) => catalog.archiveProduct(svc(), productId, archived)),
+  );
+
+  server.registerTool(
     "add_account",
     {
-      description: "Add an account. Give productId (from list_products) or institutionId. Only the LAST 4 digits may be stored - never send full card or account numbers. Dates are YYYY-MM-DD.",
+      description: "Add an account. Give productId (from list_products) or institutionId. last4 = the trailing 4 or 5 digits only (Amex shows 5) - never send full card or account numbers. Dates are YYYY-MM-DD.",
       inputSchema: accountInput,
     },
     tool(async (a) => accounts.createAccount(svc(), a)),
   );
 
   server.registerTool(
+    "update_account",
+    {
+      description:
+        "Edit an existing account. Any of: nickname, last4 (trailing 4 or 5 digits only - never full numbers), productId (same kind; prefer record_event product_change to keep history), institutionId, ownerType, status (pending|open|closed|denied), appliedAt/openedAt/closedAt (YYYY-MM-DD, null to clear), isAuthorizedUser, notes, details.",
+      inputSchema: accountPatch.omit({ kind: true }).extend({ accountId: z.string() }),
+    },
+    tool(async ({ accountId, ...patch }) => accounts.updateAccount(svc(), accountId, patch)),
+  );
+
+  server.registerTool(
+    "delete_account",
+    {
+      description:
+        "Permanently delete one of the user's accounts together with its timeline events, bonuses, benefits and benefit uses (e.g. to remove a duplicate created during import). Cannot be undone - confirm the accountId with get_account first.",
+      inputSchema: z.object({ accountId: z.string() }),
+      annotations: { destructiveHint: true },
+    },
+    tool(async ({ accountId }) => accounts.deleteAccount(svc(), accountId)),
+  );
+
+  server.registerTool(
     "record_event",
     {
-      description: "Record a timeline event on an account: applied, approved, denied, product_change/upgrade/downgrade (requires toProductId), closed, bonus_earned (marks the pending bonus as posted), note. Updates account status accordingly.",
+      description:
+        "Record a timeline event on an account: applied, approved (sets status open + openedAt), denied, closed (status closed + closedAt), product_change/upgrade/downgrade (requires toProductId of the same kind; switches the account's current product and keeps the old one in history - create the product first with add_product if it is not listed), bonus_earned (marks the pending bonus as posted; this date drives 24/48-month rules), note.",
       inputSchema: eventInput.extend({ accountId: z.string() }),
     },
     tool(async ({ accountId, ...e }) => accounts.recordEvent(svc(), accountId, e)),

@@ -17,7 +17,7 @@ import {
   type Product,
 } from "../db/schema";
 import type { accountInput, accountPatch, eventInput } from "../schemas";
-import { ensureCatalog, getProduct } from "./catalog";
+import { catalogView, ensureCatalog, getActiveProduct } from "./catalog";
 import { BadRequestError, NotFoundError, newId, nowIso, type ServiceContext } from "./context";
 
 export interface AccountSummary extends Account {
@@ -53,12 +53,20 @@ async function loadJoined(ctx: ServiceContext, where?: ReturnType<typeof eq>) {
     )
     .where(and(eq(accounts.ownerId, ctx.ownerId), where))
     .orderBy(desc(accounts.openedAt), desc(accounts.createdAt));
+  // Apply the owner's catalog view (overrides of seeded products/institutions).
+  const view = await catalogView(ctx);
+  for (const r of rows) {
+    if (r.product) r.product = view.products.get(r.product.id) ?? r.product;
+    if (r.institution) r.institution = view.institutions.get(r.institution.id) ?? r.institution;
+  }
   // Fill institution for product-less accounts.
   const missing = rows.filter((r) => !r.institution && r.account.institutionId).map((r) => r.account.institutionId!);
   if (missing.length) {
     const inst = await ctx.db.select().from(institutions).where(inArray(institutions.id, [...new Set(missing)]));
     const byId = new Map(inst.map((i) => [i.id, i]));
-    for (const r of rows) if (!r.institution && r.account.institutionId) r.institution = byId.get(r.account.institutionId) ?? null;
+    for (const r of rows)
+      if (!r.institution && r.account.institutionId)
+        r.institution = view.institutions.get(r.account.institutionId) ?? byId.get(r.account.institutionId) ?? null;
   }
   return rows as Joined[];
 }
@@ -166,7 +174,7 @@ export async function createAccount(
   await ensureCatalog(ctx);
   let ownerType = input.ownerType;
   if (input.productId) {
-    const p = await getProduct(ctx, input.productId);
+    const p = await getActiveProduct(ctx, input.productId);
     ownerType ??= p.ownerType;
     if (p.kind !== input.kind) throw new BadRequestError(`Product ${p.id} is a ${p.kind}, not a ${input.kind}`);
   }
@@ -202,8 +210,12 @@ export async function createAccount(
 }
 
 export async function updateAccount(ctx: ServiceContext, id: string, patch: z.infer<typeof accountPatch>) {
-  await requireAccount(ctx, id);
-  if (patch.productId) await getProduct(ctx, patch.productId);
+  const current = await requireAccount(ctx, id);
+  if (patch.kind && patch.kind !== current.kind) throw new BadRequestError("An account's kind cannot be changed");
+  if (patch.productId && patch.productId !== current.productId) {
+    const p = await getActiveProduct(ctx, patch.productId);
+    if (p.kind !== current.kind) throw new BadRequestError(`Product ${p.id} is a ${p.kind}, not a ${current.kind}`);
+  }
   await ctx.db
     .update(accounts)
     .set({ ...patch, updatedAt: nowIso() })
@@ -259,8 +271,11 @@ export async function recordEvent(ctx: ServiceContext, accountId: string, input:
     case "product_change":
     case "upgrade":
     case "downgrade":
-      if (!toProductId) throw new BadRequestError(`${input.type} requires toProductId`);
-      await getProduct(ctx, toProductId);
+      if (!toProductId) throw new BadRequestError(`${input.type} requires toProductId (create the product first with add_product / POST /api/products if it is not in the catalog)`);
+      {
+        const p = await getActiveProduct(ctx, toProductId);
+        if (p.kind !== account.kind) throw new BadRequestError(`Product ${p.id} is a ${p.kind}, not a ${account.kind}`);
+      }
       fromProductId ??= account.productId;
       patch.productId = toProductId;
       break;

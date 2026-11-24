@@ -5,7 +5,7 @@ never committed to the repository. If you keep a local file, put it under `priva
 (git-ignored) or name it `*.private.json` / `*.private.csv`.
 
 Use **预览 (dry run)** first: it validates every row and reports what would be created.
-Re-importing is safe: an account with the same product, open date and last 4 is skipped.
+Re-importing is safe: an account with the same product, open date and trailing digits is skipped.
 
 ## JSON
 
@@ -40,7 +40,7 @@ Account fields:
 | `issuer` | Needed only when the product is not in the catalog; an institution is created if missing. |
 | `kind` | `credit_card` (default), `bank_account`, `gift_card` |
 | `ownerType` | `personal` / `business` (defaults to the product's) |
-| `last4` | **Exactly 4 digits.** Full numbers are rejected. |
+| `last4` | The trailing **4 or 5 digits** (Amex shows 5). Full numbers are rejected. |
 | `status` | `open` (default), `closed`, `denied`, `pending` |
 | `appliedAt`, `openedAt`, `closedAt` | `YYYY-MM-DD` |
 | `isAuthorizedUser` | `true` for AU cards (they count toward 5/24 by default) |

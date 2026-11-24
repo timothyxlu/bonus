@@ -15,6 +15,20 @@
       "when": 1795478370955,
       "tag": "0001_offers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795480174964,
+      "tag": "0002_catalog_overrides",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1795480529572,
+      "tag": "0003_last_digits",
+      "breakpoints": true
     }
   ]
 }

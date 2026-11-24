@@ -18,7 +18,7 @@ export function toRuleProduct(p: Product): RuleProduct {
 
 /** Build the normalised history the rules engine consumes. */
 export async function buildHistory(ctx: ServiceContext) {
-  const productRows = await listProducts(ctx);
+  const productRows = await listProducts(ctx, { includeArchived: true });
   const byId = new Map(productRows.map((p) => [p.id, p]));
   const accountRows = await ctx.db.select().from(accounts).where(eq(accounts.ownerId, ctx.ownerId));
   const ids = accountRows.map((a) => a.id);
@@ -57,8 +57,12 @@ export async function buildHistory(ctx: ServiceContext) {
         const x = byId.get(e.fromProductId!);
         return { productId: e.fromProductId!, family: x?.family ?? null, familyRank: x?.rules?.familyRank };
       });
+    // Offer explicitly failed/cancelled and nothing posted: don't assume an approximate bonus date.
+    const own = bonusRows.filter((b) => b.accountId === a.id);
+    const noBonus = own.length > 0 && own.every((b) => b.status === "failed" || b.status === "cancelled") && uniqueBonuses.length === 0;
     return {
       id: a.id,
+      noBonus,
       label: accountLabel(a, p?.name),
       productId: a.productId,
       issuer: p?.institutionId ?? a.institutionId ?? "unknown",

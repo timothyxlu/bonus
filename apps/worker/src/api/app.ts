@@ -13,8 +13,10 @@ import {
   bonusInput,
   bonusPatch,
   eventInput,
+  archiveInput,
   claimOfferInput,
   institutionInput,
+  institutionPatch,
   offerInput,
   offerPatch,
   isoDate,
@@ -79,11 +81,25 @@ export function createApi() {
   // Catalog
   api.get("/institutions", async (c) => c.json(await catalog.listInstitutions(c.var.svc)));
   api.post("/institutions", async (c) => c.json(await catalog.createInstitution(c.var.svc, await body(c, institutionInput)), 201));
-  api.get("/products", async (c) =>
-    c.json(await catalog.listProducts(c.var.svc, { kind: c.req.query("kind"), institutionId: c.req.query("institutionId") })),
-  );
+  api.patch("/institutions/:id", async (c) => c.json(await catalog.updateInstitution(c.var.svc, c.req.param("id"), await body(c, institutionPatch))));
+  api.delete("/institutions/:id/override", async (c) => c.json(await catalog.resetOverride(c.var.svc, "institution", c.req.param("id"))));
+  api.get("/products", async (c) => {
+    const list = await catalog.listProducts(c.var.svc, {
+      kind: c.req.query("kind"),
+      institutionId: c.req.query("institutionId"),
+      includeArchived: c.req.query("archived") === "1",
+      q: c.req.query("q"),
+    });
+    if (c.req.query("usage") !== "1") return c.json(list);
+    const usage = await catalog.productUsage(c.var.svc);
+    return c.json(list.map((p) => ({ ...p, accountCount: usage.get(p.id) ?? 0 })));
+  });
   api.post("/products", async (c) => c.json(await catalog.createProduct(c.var.svc, await body(c, productInput)), 201));
   api.patch("/products/:id", async (c) => c.json(await catalog.updateProduct(c.var.svc, c.req.param("id"), await body(c, productPatch))));
+  api.post("/products/:id/archive", async (c) =>
+    c.json(await catalog.archiveProduct(c.var.svc, c.req.param("id"), (await body(c, archiveInput)).archived)),
+  );
+  api.delete("/products/:id/override", async (c) => c.json(await catalog.resetOverride(c.var.svc, "product", c.req.param("id"))));
   api.post("/catalog/sync", async (c) => c.json(await catalog.syncCatalog(c.var.svc)));
 
   // Accounts

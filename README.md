@@ -48,8 +48,14 @@ Notes:
   `McpServer`, following Cloudflare's current `remote-mcp-cf-access` demo. `McpAgent` is deprecated
   in `agents@0.34` and would need a Durable Object for nothing. Tools: `list_accounts`, `get_account`,
   `add_account`, `record_event`, `list_benefits`, `mark_benefit_used`, `upcoming_deadlines`,
-  `check_eligibility`, `five_24_status`, plus `list_products`, `list_bonuses`, and the opportunity tools
-  `list_opportunities` / `add_offer` / `update_offer` (Claude can research current offers and record them).
+  `check_eligibility`, `five_24_status`, plus `list_products`, `list_bonuses`, the opportunity tools
+  `list_opportunities` / `add_offer` / `update_offer` (Claude can research current offers and record them),
+  catalog editing `list_institutions` / `add_institution` / `update_institution` / `add_product` /
+  `update_product` / `archive_product`, and account editing `update_account` / `delete_account`.
+- **Editable catalog (产品库)**: seeded products and institutions are shared defaults. Editing one stores a
+  per-owner override (merged on read; resyncs never clobber it, "恢复默认" drops it). Your own products are
+  edited in place. Products are archived, never deleted. The shipped catalog re-syncs automatically when
+  `CATALOG_VERSION` changes.
 - **机会 (opportunities)**: offers you might open next, valued in USD (points at per-programme
   cents, overridable), net of first-year fee and costs, ranked, and checked against your history:
   the issuer rules engine for cards, a same-institution cooldown for bank and gift-card offers.
@@ -57,7 +63,7 @@ Notes:
   every query by the user's email (`owner_id`). MCP tokens carry the same email, so web and MCP see the
   same data: `/authorize` sits behind Access, verifies the Access JWT and only asks for consent
   (no upstream IdP). Optional `ALLOWED_EMAILS` allowlist on top of Access policies.
-- **Privacy**: only the last 4 digits are accepted (validated in the API and by a DB `CHECK`).
+- **Privacy**: only the trailing 4 or 5 digits are accepted (Amex shows 5), validated in the API and by a DB `CHECK`.
   The repo contains only a generic product catalog; real history is imported through the app.
 
 ## Development

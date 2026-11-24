@@ -47,7 +47,7 @@ export function Five24Meter({ s, compact }: { s: X24Status; compact?: boolean })
                     {c.isAuthorizedUser && " AU"}
                   </span>
                 </div>
-                <p className={cx("truncate text-xs font-medium", wide)}>{c.label.replace(/ ••\d{4}$/, "")}</p>
+                <p className={cx("truncate text-xs font-medium", wide)}>{c.label.replace(/ ••\d{4,5}$/, "")}</p>
               </div>
               <p className={cx("tabular mt-1 truncate text-xs", blocking ? "font-semibold text-warn" : beyond ? "font-semibold text-danger" : "text-muted")}>
                 <span className={narrow}>{c.dropsOn.slice(0, 7)}</span>

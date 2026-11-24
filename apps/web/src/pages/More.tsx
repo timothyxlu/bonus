@@ -1,4 +1,4 @@
-import { IconCheck, IconChevron, IconCog, IconGift } from "../components/icons";
+import { IconBook, IconCheck, IconChevron, IconCog, IconGift } from "../components/icons";
 import { t } from "../i18n";
 import { Link } from "../lib/router";
 
@@ -7,6 +7,7 @@ export function MorePage() {
   const items = [
     { to: "/benefits", label: t("nav.benefits"), icon: <IconGift /> },
     { to: "/eligibility", label: t("nav.eligibility"), icon: <IconCheck /> },
+    { to: "/catalog", label: t("nav.catalog"), icon: <IconBook /> },
     { to: "/settings", label: t("nav.settings"), icon: <IconCog /> },
   ];
   return (
