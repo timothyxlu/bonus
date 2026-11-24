@@ -126,6 +126,19 @@ describe("MCP server", () => {
     expect((await callTool("delete_bonus", { bonusId: add.data.id })).data.deleted).toBe(add.data.id);
     expect((await callTool("list_bonuses", { kind: "bank_account" })).data).toHaveLength(0);
     expect((await callTool("delete_bonus", { bonusId: add.data.id })).isError).toBe(true);
+
+    const offer = await callTool("add_offer", {
+      kind: "bank_account",
+      institutionId: "chase",
+      title: "Chase $600",
+      rewardAmount: 600,
+      rewardUnit: "USD",
+      steps: [{ type: "deposit", amount: 15000, withinDays: 30 }, { type: "balance", amount: 15000, holdDays: 90 }],
+    });
+    expect(offer.isError).toBe(false);
+    expect(offer.data.steps[1]).toMatchObject({ type: "balance", holdDays: 90, withinDays: null });
+    const updOffer = await callTool("update_offer", { offerId: offer.data.id, steps: [{ type: "deposit", amount: 20000, withinDays: 45 }] });
+    expect(updOffer.data.steps).toEqual([{ type: "deposit", amount: 20000, withinDays: 45, holdDays: null, description: null }]);
   });
 
   it("manages loyalty balances through MCP for its authenticated owner", async () => {

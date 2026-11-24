@@ -228,8 +228,8 @@ const fromDraft = (s: StepDraft): BonusStep => ({
   amount: s.amount === "" ? null : Number(s.amount),
   progress: s.progress === "" ? 0 : Number(s.progress),
   dueBy: s.dueBy || null,
-  holdFrom: s.holdFrom || null,
-  holdUntil: s.holdUntil || null,
+  holdFrom: (s.type === "balance" && s.holdFrom) || null,
+  holdUntil: (s.type === "balance" && s.holdUntil) || null,
   description: s.description.trim() || null,
   done: s.done,
 });

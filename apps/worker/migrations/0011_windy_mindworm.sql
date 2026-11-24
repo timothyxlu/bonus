@@ -1,0 +1,1 @@
+ALTER TABLE `offers` ADD `steps` text DEFAULT '[]' NOT NULL;

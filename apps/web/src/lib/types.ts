@@ -9,6 +9,7 @@ import type {
   BonusStepState,
   EligibilityResult,
   EventType,
+  OfferStep,
   OwnerType,
   ProductRules,
   RewardUnit,
@@ -251,6 +252,8 @@ export interface Opportunity {
   feeWaivedFirstYear: boolean;
   otherCost: number | null;
   cooldownMonths: number | null;
+  /** Multi-step conditions relative to opening; empty for a single-condition offer. */
+  steps: OfferStep[];
   expiresAt: string | null;
   sourceUrl: string | null;
   notes: string | null;

@@ -1,4 +1,4 @@
-import { ACCOUNT_KINDS, BONUS_REQUIREMENT_TYPES, REWARD_UNITS, type AccountKind } from "@bonus/core";
+import { ACCOUNT_KINDS, BONUS_REQUIREMENT_TYPES, REWARD_UNITS, type AccountKind, type BonusRequirementType, type OfferStep } from "@bonus/core";
 import { useMemo, useState, type FormEvent } from "react";
 import { ProductSelect } from "../components/AccountForm";
 import { IconExternal, IconPlus } from "../components/icons";
@@ -112,6 +112,18 @@ function reward(o: Opportunity) {
   return o.rewardUnit === "USD" ? fmtUsd(o.rewardAmount) : `${fmtNum(o.rewardAmount)} ${td(`unit.${o.rewardUnit}`)}`;
 }
 
+/** "存入新资金 $15,000，开户 30 天内，保持到第 90 天" */
+function stepText(s: OfferStep) {
+  return [
+    s.amount ? t("opp.req", { type: td(`req.${s.type}`), amount: fmtUsd(s.amount) }) : td(`req.${s.type}`),
+    s.withinDays !== null ? t("opp.step.within", { n: s.withinDays }) : null,
+    s.holdDays !== null ? t("opp.step.hold", { n: s.holdDays }) : null,
+    s.description,
+  ]
+    .filter(Boolean)
+    .join("，");
+}
+
 function OpportunityRow({ o, rank, onEdit, onClaim }: { o: Opportunity; rank: number; onEdit: () => void; onClaim: () => void }) {
   const [open, setOpen] = useState(false);
   const archive = useMutate(() => api.patch(`/offers/${o.id}`, { status: o.status === "active" ? "archived" : "active" }));
@@ -158,10 +170,21 @@ function OpportunityRow({ o, rank, onEdit, onClaim }: { o: Opportunity; rank: nu
             {o.rewardUnit !== "USD" && <span className="text-muted"> ≈ {fmtUsd(Math.round(o.value.grossUsd))}</span>}
             {o.rewardUnit !== "USD" && <span className="ml-1 text-xs text-faint">{t("opp.cpp", { c: o.value.centsPerPoint })}</span>}
           </p>
-          <p className="text-muted">
-            {o.amountRequired ? t("opp.req", { type: td(`req.${o.requirementType}`), amount: fmtUsd(o.amountRequired) }) : td(`req.${o.requirementType}`)}
-            {o.windowMonths ? `，${t("opp.window", { n: o.windowMonths })}` : ""}
-          </p>
+          {o.steps?.length ? (
+            <ol className="space-y-0.5 text-muted" aria-label={t("bonus.steps")}>
+              {o.steps.map((s, i) => (
+                <li key={i}>
+                  <span className="text-faint">{i + 1}. </span>
+                  {stepText(s)}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-muted">
+              {o.amountRequired ? t("opp.req", { type: td(`req.${o.requirementType}`), amount: fmtUsd(o.amountRequired) }) : td(`req.${o.requirementType}`)}
+              {o.windowMonths ? `，${t("opp.window", { n: o.windowMonths })}` : ""}
+            </p>
+          )}
           <p className="text-xs text-muted">
             {o.feeWaivedFirstYear ? t("opp.feeWaived") : o.value.costUsd > 0 ? t("opp.cost", { v: fmtUsd(o.value.costUsd) }) : null}
             {roi !== null && <span className={o.value.costUsd > 0 || o.feeWaivedFirstYear ? "ml-2" : ""}>{t("opp.roi", { v: (roi * 100).toFixed(1) })}</span>}
@@ -244,6 +267,83 @@ function ClaimForm({ o, onDone }: { o: Opportunity; onDone: () => void }) {
 
 const NEW_INST = "__new__";
 
+interface OfferStepDraft {
+  type: BonusRequirementType;
+  amount: string;
+  withinDays: string;
+  holdDays: string;
+  description: string;
+}
+
+const toOfferDraft = (s: OfferStep): OfferStepDraft => ({
+  type: s.type,
+  amount: s.amount?.toString() ?? "",
+  withinDays: s.withinDays?.toString() ?? "",
+  holdDays: s.holdDays?.toString() ?? "",
+  description: s.description ?? "",
+});
+
+const fromOfferDraft = (s: OfferStepDraft): OfferStep => ({
+  type: s.type,
+  amount: s.amount.trim() === "" ? null : Number(s.amount),
+  withinDays: s.withinDays.trim() === "" ? null : Number(s.withinDays),
+  holdDays: s.type !== "balance" || s.holdDays.trim() === "" ? null : Number(s.holdDays),
+  description: s.description.trim() || null,
+});
+
+/** Ordered conditions of a multi-step offer, in days from opening. */
+function OfferStepsEditor({ steps, onChange }: { steps: OfferStepDraft[]; onChange: (steps: OfferStepDraft[]) => void }) {
+  const patch = (i: number, p: Partial<OfferStepDraft>) => onChange(steps.map((s, j) => (j === i ? { ...s, ...p } : s)));
+  const add = () => onChange([...steps, { type: steps.length ? "balance" : "deposit", amount: steps.at(-1)?.amount ?? "", withinDays: "", holdDays: "", description: "" }]);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">{t("bonus.steps")}</p>
+        <Button type="button" size="sm" variant="ghost" onClick={add} disabled={steps.length >= 10}>
+          + {t("bonus.addStep")}
+        </Button>
+      </div>
+      {steps.length === 0 && <p className="text-xs text-muted">{t("bonus.stepsHint")}</p>}
+      {steps.map((s, i) => (
+        <fieldset key={i} className="grid grid-cols-2 gap-2 rounded-[var(--radius-row)] bg-sunken p-3">
+          <legend className="sr-only">{t("bonus.step", { n: i + 1 })}</legend>
+          <div className="col-span-2 flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">{t("bonus.step", { n: i + 1 })}</span>
+            <Button type="button" size="sm" variant="danger" aria-label={`${t("bonus.removeStep")} ${i + 1}`} onClick={() => onChange(steps.filter((_, j) => j !== i))}>
+              {t("bonus.removeStep")}
+            </Button>
+          </div>
+          <Field label={t("bonus.requirementType")}>
+            <Select value={s.type} onChange={(e) => patch(i, { type: e.target.value as BonusRequirementType })}>
+              {BONUS_REQUIREMENT_TYPES.map((x) => (
+                <option key={x} value={x}>
+                  {td(`req.${x}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("bonus.step.amount")}>
+            <Input type="number" min="0" step="0.01" value={s.amount} onChange={(e) => patch(i, { amount: e.target.value })} />
+          </Field>
+          <Field label={t("opp.f.withinDays")}>
+            <Input type="number" min="0" max="1100" step="1" value={s.withinDays} onChange={(e) => patch(i, { withinDays: e.target.value })} />
+          </Field>
+          {s.type === "balance" ? (
+            <Field label={t("opp.f.holdDays")}>
+              <Input type="number" min="0" max="1100" step="1" value={s.holdDays} onChange={(e) => patch(i, { holdDays: e.target.value })} />
+            </Field>
+          ) : (
+            <span />
+          )}
+          <Field label={t("bonus.step.description")} className="col-span-2">
+            <Input value={s.description} maxLength={300} onChange={(e) => patch(i, { description: e.target.value })} />
+          </Field>
+        </fieldset>
+      ))}
+    </div>
+  );
+}
+
 function OfferForm({ initial, defaultKind, onDone }: { initial?: Opportunity; defaultKind: AccountKind; onDone: () => void }) {
   const { data: products = [] } = useProducts();
   const { data: institutions = [] } = useInstitutions();
@@ -269,6 +369,8 @@ function OfferForm({ initial, defaultKind, onDone }: { initial?: Opportunity; de
     sourceUrl: initial?.sourceUrl ?? "",
     notes: initial?.notes ?? "",
   }));
+  const [steps, setSteps] = useState<OfferStepDraft[]>(() => (initial?.steps ?? []).map(toOfferDraft));
+  const multi = steps.length > 0;
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
   const isCard = f.kind === "credit_card";
@@ -292,6 +394,8 @@ function OfferForm({ initial, defaultKind, onDone }: { initial?: Opportunity; de
       expiresAt: f.expiresAt || null,
       sourceUrl: f.sourceUrl.trim() || null,
       notes: f.notes.trim() || null,
+      steps: steps.map(fromOfferDraft),
+      ...(multi ? { requirementType: steps[0]!.type, windowMonths: null } : {}),
     };
     if (initial) return api.patch(`/offers/${initial.id}`, common);
     let institutionId: string | null = useProduct ? null : f.institutionId || null;
@@ -372,21 +476,28 @@ function OfferForm({ initial, defaultKind, onDone }: { initial?: Opportunity; de
           ))}
         </Select>
       </Field>
-      <Field label={t("bonus.requirementType")}>
-        <Select value={f.requirementType} onChange={set("requirementType")}>
-          {BONUS_REQUIREMENT_TYPES.map((x) => (
-            <option key={x} value={x}>
-              {td(`req.${x}`)}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label={t("bonus.amountRequired")}>
-        <Input type="number" min="0" value={f.amountRequired} onChange={set("amountRequired")} />
-      </Field>
-      <Field label={t("opp.f.windowMonths")}>
-        <Input type="number" min="0" max="60" value={f.windowMonths} onChange={set("windowMonths")} />
-      </Field>
+      {!multi && (
+        <>
+          <Field label={t("bonus.requirementType")}>
+            <Select value={f.requirementType} onChange={set("requirementType")}>
+              {BONUS_REQUIREMENT_TYPES.map((x) => (
+                <option key={x} value={x}>
+                  {td(`req.${x}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("bonus.amountRequired")}>
+            <Input type="number" min="0" value={f.amountRequired} onChange={set("amountRequired")} />
+          </Field>
+          <Field label={t("opp.f.windowMonths")}>
+            <Input type="number" min="0" max="60" value={f.windowMonths} onChange={set("windowMonths")} />
+          </Field>
+        </>
+      )}
+      <div className="sm:col-span-2">
+        <OfferStepsEditor steps={steps} onChange={setSteps} />
+      </div>
       <Field label={t("opp.f.expiresAt")}>
         <Input type="date" value={f.expiresAt} onChange={set("expiresAt")} />
       </Field>

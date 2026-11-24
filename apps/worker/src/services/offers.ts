@@ -1,4 +1,4 @@
-import { addMonths, checkOfferEligibility, valueOffer, type OfferLike } from "@bonus/core";
+import { addMonths, checkOfferEligibility, offerStepsToBonusSteps, valueOffer, type OfferLike } from "@bonus/core";
 import { and, desc, eq } from "drizzle-orm";
 import type { z } from "zod";
 import { bonuses, offers, type Offer } from "../db/schema";
@@ -103,16 +103,19 @@ export async function claimOffer(ctx: ServiceContext, id: string, input: z.infer
     details: {},
     notes: o.sourceUrl ? `Offer: ${o.sourceUrl}` : null,
   });
+  const steps = offerStepsToBonusSteps(o.steps ?? [], openedAt);
+  const lastStepDate = steps.flatMap((s) => [s.dueBy, s.holdUntil]).filter((d): d is string => !!d).sort().at(-1) ?? null;
   await ctx.db.insert(bonuses).values({
     id: newId(),
     ownerId: ctx.ownerId,
     accountId: account.id,
     productId: o.productId,
     description: o.title,
-    requirementType: o.requirementType,
+    requirementType: steps[0]?.type ?? o.requirementType,
     amountRequired: o.amountRequired,
     progress: 0,
-    deadline: o.windowMonths ? addMonths(openedAt, o.windowMonths) : null,
+    deadline: lastStepDate ?? (o.windowMonths ? addMonths(openedAt, o.windowMonths) : null),
+    steps,
     rewardAmount: o.rewardAmount,
     rewardUnit: o.rewardUnit,
     status: "in_progress",

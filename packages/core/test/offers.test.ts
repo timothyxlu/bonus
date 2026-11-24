@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { centsPerUnit, checkOfferEligibility, valueOffer, type OfferLike } from "../src";
+import { bonusProgress, centsPerUnit, checkOfferEligibility, offerStepsToBonusSteps, valueOffer, type OfferLike, type OfferStep } from "../src";
 import { acct, products } from "./helpers";
 
 const asOf = "2026-11-23";
@@ -18,6 +18,29 @@ describe("offer valuation", () => {
     expect(valueOffer({ ...base, feeWaivedFirstYear: true }, { productAnnualFee: 95 }).costUsd).toBe(0);
     expect(valueOffer({ ...base, estValueUsd: 1000, otherCost: 50 }).netUsd).toBe(950);
     expect(valueOffer({ ...base, rewardAmount: 300, rewardUnit: "USD", amountRequired: 0 }).returnOnRequired).toBeNull();
+  });
+
+  const bankSteps: OfferStep[] = [
+    { type: "deposit", amount: 15000, withinDays: 30, holdDays: null, description: "new money" },
+    { type: "balance", amount: 15000, withinDays: null, holdDays: 90, description: null },
+  ];
+
+  it("values a multi-step offer on its largest step amount", () => {
+    const v = valueOffer({ ...base, kind: "bank_account", rewardAmount: 600, rewardUnit: "USD", amountRequired: null, steps: bankSteps });
+    expect(v.netUsd).toBe(600);
+    expect(v.returnOnRequired).toBeCloseTo(600 / 15000);
+  });
+
+  it("turns relative offer steps into dated bonus steps", () => {
+    const steps = offerStepsToBonusSteps(bankSteps, "2026-11-01");
+    expect(steps).toEqual([
+      { type: "deposit", amount: 15000, progress: 0, dueBy: "2026-12-01", holdFrom: null, holdUntil: null, description: "new money", done: false },
+      { type: "balance", amount: 15000, progress: 0, dueBy: null, holdFrom: null, holdUntil: "2027-01-30", description: null, done: false },
+    ]);
+    // Holding: the hold window starts at the deposit due date.
+    const p = bonusProgress({ amountRequired: null, progress: 0, deadline: null, status: "in_progress", steps: steps.map((s) => ({ ...s, progress: 15000 })) }, "2026-12-31");
+    expect(p.steps.map((s) => s.state)).toEqual(["done", "holding"]);
+    expect(p.daysLeft).toBe(30);
   });
 });
 

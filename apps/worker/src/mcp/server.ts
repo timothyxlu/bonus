@@ -407,7 +407,7 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   server.registerTool(
     "add_offer",
     {
-      description: "Record an offer for the opportunities page, e.g. after researching current public offers. Use productId (from list_products) for credit cards; otherwise institutionId (create it first in the app if needed). rewardUnit points/miles/USD; optional centsPerPoint or estValueUsd override the valuation; cooldownMonths encodes 'no bonus if you received one from this bank in the last N months'. Include sourceUrl.",
+      description: "Record an offer for the opportunities page, e.g. after researching current public offers. Use productId (from list_products) for credit cards; otherwise institutionId (create it first in the app if needed). rewardUnit points/miles/USD; optional centsPerPoint or estValueUsd override the valuation; cooldownMonths encodes 'no bonus if you received one from this bank in the last N months'. Include sourceUrl. Multi-condition offers (typical bank bonus: 'deposit $15k of new money within 30 days and keep $15k until day 90') go in steps, an ordered list of {type: spend | deposit | direct_deposit | balance | other, amount (USD), withinDays (finish within N days of opening), holdDays (balance steps: keep the amount until day N after opening), description}; the largest step amount counts as the required amount for return-on-deposit, and opening the account turns the steps into one dated multi-step bonus.",
       inputSchema: offerInput,
     },
     tool(async (a) => offers.createOffer(svc(), a)),
@@ -416,7 +416,7 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   server.registerTool(
     "update_offer",
     {
-      description: "Update an offer (e.g. new amount or expiry) or archive it with status 'archived' when it ends.",
+      description: "Update an offer (e.g. new amount, expiry or steps) or archive it with status 'archived' when it ends. Only the fields you pass change; steps replaces the whole list (see add_offer for the step format).",
       inputSchema: offerPatch.extend({ offerId: z.string() }),
     },
     tool(async ({ offerId, ...patch }) => offers.updateOffer(svc(), offerId, patch)),

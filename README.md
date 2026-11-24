@@ -62,6 +62,8 @@ Notes:
   "deposit $15k of new money within 30 days" and then "keep $15k through day 90". Each step is done, holding (balance
   is there, hold date not reached), pending or overdue; the bonus shows overall progress and the next date that matters,
   and moves to met once every step is met.
+  Offers on the 机会 page take the same steps in days from opening (`withinDays`, `holdDays`); "我已开户" turns them
+  into a dated multi-step bonus, and the largest step amount is used for return on deposit.
 - **机会 (opportunities)**: offers you might open next, valued in USD (points at per-programme
   cents, overridable), net of first-year fee and costs, ranked, and checked against your history:
   the issuer rules engine for cards, a same-institution cooldown for bank and gift-card offers.

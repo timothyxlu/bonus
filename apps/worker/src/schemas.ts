@@ -295,6 +295,17 @@ export const importPayload = z.object({
 });
 export type ImportPayload = z.infer<typeof importPayload>;
 
+/** One condition of a multi-step offer, in days from opening. */
+export const offerStep = z
+  .object({
+    type: z.enum(BONUS_REQUIREMENT_TYPES).default("other"),
+    amount: z.number().min(0).nullish().transform((v) => v ?? null),
+    withinDays: z.number().int().min(0).max(1100).nullish().transform((v) => v ?? null),
+    holdDays: z.number().int().min(0).max(1100).nullish().transform((v) => v ?? null),
+    description: optText(300).transform((v) => v ?? null),
+  })
+  .refine((s) => s.withinDays === null || s.holdDays === null || s.withinDays <= s.holdDays, { message: "withinDays must not be after holdDays" });
+
 export const offerInput = z
   .object({
     kind: z.enum(ACCOUNT_KINDS),
@@ -312,6 +323,7 @@ export const offerInput = z
     feeWaivedFirstYear: z.boolean().default(false),
     otherCost: z.number().min(0).nullish(),
     cooldownMonths: z.number().int().min(0).max(120).nullish(),
+    steps: z.array(offerStep).max(10).default([]),
     expiresAt: optDate,
     sourceUrl,
     notes: optText(2000),
@@ -330,6 +342,7 @@ export const offerPatch = z.object({
   feeWaivedFirstYear: z.boolean().optional(),
   otherCost: z.number().min(0).nullish(),
   cooldownMonths: z.number().int().min(0).max(120).nullish(),
+  steps: z.array(offerStep).max(10).optional(),
   expiresAt: optDate,
   sourceUrl,
   notes: optText(2000),
