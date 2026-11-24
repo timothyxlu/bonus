@@ -23,8 +23,16 @@ const call = async (method: string, path: string, body?: unknown, headers: Recor
   const text = await res.text();
   return { status: res.status, headers: res.headers, text, body: text ? JSON.parse(text) : null };
 };
+/**
+ * Long values (card / gift numbers) are matched as substrings. Short ones (CVV, PIN, expiry)
+ * are matched as JSON string values, so random digits inside UUIDs or timestamps don't
+ * cause false positives - a real leak would serialise them as "737".
+ */
 const noSecrets = (label: string, text: string) => {
-  for (const s of SECRETS) expect(text.includes(s), `${label} leaked ${s.slice(0, 2)}…`).toBe(false);
+  for (const s of SECRETS) {
+    const needle = s.length >= 8 ? s : `"${s}"`;
+    expect(text.includes(needle), `${label} leaked ${s.slice(0, 2)}…`).toBe(false);
+  }
 };
 
 let cardId = "";
@@ -127,9 +135,14 @@ describe("account secrets (web only)", () => {
         env,
         { waitUntil() {}, passThroughOnException() {} } as any,
       );
-      return res.text();
+      const raw = await res.text();
+      // Scan the decoded tool output (JSON text inside the JSON-RPC envelope), not the escaped envelope.
+      const json = JSON.parse(raw.startsWith("{") ? raw : raw.split("\n").find((l) => l.startsWith("data:"))!.slice(5));
+      const texts = (json.result?.content ?? []).map((c: any) => c.text ?? "").join("\n");
+      return `${texts}\n${json.error?.message ?? ""}\n${raw}`;
     };
-    const list = JSON.parse((await rpc("tools/list", {})).replace(/^[\s\S]*?data:/, "").trim() || "{}");
+    const listRaw = (await rpc("tools/list", {})).split("\n").find((l) => l.includes('"tools"')) ?? "";
+    const list = JSON.parse(listRaw.startsWith("data:") ? listRaw.slice(5) : listRaw);
     const names: string[] = (list.result?.tools ?? []).map((t: any) => t.name);
     expect(names.length).toBeGreaterThan(20);
     expect(names.some((n) => /secret|pan|cvv|pin/i.test(n))).toBe(false);

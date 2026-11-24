@@ -172,7 +172,13 @@ export function createApi() {
 
   // Benefits
   api.get("/benefits", async (c) =>
-    c.json(await bon.listBenefits(c.var.svc, { accountId: c.req.query("accountId"), unusedOnly: c.req.query("unused") === "1" })),
+    c.json(
+      await bon.listBenefits(c.var.svc, {
+        accountId: c.req.query("accountId"),
+        unusedOnly: c.req.query("unused") === "1",
+        includeInactive: c.req.query("inactive") === "1",
+      }),
+    ),
   );
   api.post("/accounts/:id/benefits", async (c) => c.json(await bon.createBenefit(c.var.svc, c.req.param("id"), await body(c, benefitInput)), 201));
   api.patch("/benefits/:id", async (c) => c.json(await bon.updateBenefit(c.var.svc, c.req.param("id"), await body(c, benefitPatch))));
