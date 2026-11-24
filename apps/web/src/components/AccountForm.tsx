@@ -2,6 +2,7 @@ import { ACCOUNT_KINDS, ACCOUNT_STATUSES, OWNER_TYPES, type AccountKind } from "
 import { useMemo, useState, type FormEvent } from "react";
 import { t, td } from "../i18n";
 import { api } from "../lib/api";
+import { institutionMessageKey, institutionsForAccountKind } from "../lib/accountForm";
 import { useInstitutions, useMutate, useProducts } from "../lib/queries";
 import { cx } from "../lib/format";
 import { KIND_META } from "../lib/kinds";
@@ -65,6 +66,7 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
   const meta = KIND_META[f.kind];
   const kindProducts = products.filter((p) => p.kind === f.kind);
+  const kindInstitutions = institutionsForAccountKind(institutions, f.kind);
   // Kinds without catalog products (bank accounts, gift cards) pick an institution directly.
   const usesCatalog = meta.hasCatalog || kindProducts.length > 0;
   const newProduct = usesCatalog && f.productId === NEW_PRODUCT;
@@ -162,10 +164,10 @@ export function AccountForm({ initial, onDone, defaultKind = "credit_card" }: { 
         </>
       )}
       {needsInstitution && (
-        <Field label={t("acct.institution")} className={f.institutionId === NEW_INST ? "" : "sm:col-span-2"}>
+        <Field label={t(institutionMessageKey(f.kind))} className={f.institutionId === NEW_INST ? "" : "sm:col-span-2"}>
           <Select value={f.institutionId} onChange={set("institutionId")} required>
             <option value="">—</option>
-            {institutions.map((i) => (
+            {kindInstitutions.map((i) => (
               <option key={i.id} value={i.id}>
                 {i.name}
               </option>

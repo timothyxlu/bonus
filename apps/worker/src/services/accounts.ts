@@ -179,6 +179,7 @@ export async function createAccount(
     ownerType ??= p.ownerType;
     if (p.kind !== input.kind) throw new BadRequestError(`Product ${p.id} is a ${p.kind}, not a ${input.kind}`);
   }
+  if (input.kind === "gift_card") await requireMerchantInstitution(ctx, input.productId ?? null, input.institutionId ?? null);
   const id = newId();
   const row: typeof accounts.$inferInsert = {
     id,
@@ -217,11 +218,28 @@ export async function updateAccount(ctx: ServiceContext, id: string, patch: z.in
     const p = await getActiveProduct(ctx, patch.productId);
     if (p.kind !== current.kind) throw new BadRequestError(`Product ${p.id} is a ${p.kind}, not a ${current.kind}`);
   }
+  if (current.kind === "gift_card" && (patch.productId !== undefined || patch.institutionId !== undefined)) {
+    await requireMerchantInstitution(
+      ctx,
+      patch.productId === undefined ? current.productId : patch.productId,
+      patch.institutionId === undefined ? current.institutionId : patch.institutionId,
+    );
+  }
   await ctx.db
     .update(accounts)
     .set({ ...patch, updatedAt: nowIso() })
     .where(and(eq(accounts.id, id), eq(accounts.ownerId, ctx.ownerId)));
   return getAccount(ctx, id);
+}
+
+async function requireMerchantInstitution(ctx: ServiceContext, productId: string | null, institutionId: string | null) {
+  let resolvedInstitutionId = institutionId;
+  if (productId) resolvedInstitutionId = (await getActiveProduct(ctx, productId)).institutionId;
+  const institution = resolvedInstitutionId ? (await catalogView(ctx)).institutions.get(resolvedInstitutionId) : undefined;
+  if (!institution) throw new BadRequestError(`Unknown institution: ${resolvedInstitutionId ?? "(missing)"}`);
+  if (institution.type !== "merchant") {
+    throw new BadRequestError(`Gift cards require a merchant institution; ${institution.name} is a ${institution.type}`);
+  }
 }
 
 export async function deleteAccount(ctx: ServiceContext, id: string) {

@@ -8,6 +8,7 @@ import { IconGift, IconPlus } from "../components/icons";
 import { Badge, Button, Empty, ErrorText, Input, IssuerChip, ProgressBar, Select, Sheet, Spinner, statusTone } from "../components/ui";
 import { t, td, type MessageKey } from "../i18n";
 import { cx, fmtUsd } from "../lib/format";
+import { accountCreationMessageKey } from "../lib/accountForm";
 import { useAccounts } from "../lib/queries";
 import { useRouter } from "../lib/router";
 import type { AccountSummary } from "../lib/types";
@@ -91,6 +92,7 @@ export function AccountsPage() {
   }, [data]);
   const showBenefits = kind === "" || kind === "credit_card";
   const showBonus = kind !== "gift_card";
+  const createLabel = t(accountCreationMessageKey(kind));
   // For bank accounts and gift cards the category detail (type, face value, discount) is the key fact.
   const detailCls = kind && kind !== "credit_card" ? "" : "hidden 2xl:table-cell";
   const colCls = (c: (typeof COLS)[number]) => (c.key === "fee" ? detailCls : c.className);
@@ -139,8 +141,8 @@ export function AccountsPage() {
           </option>
         ))}
       </Select>
-      <Button variant="primary" onClick={() => setCreating(true)} className="sm:ml-auto" aria-label={t("acct.new")}>
-        <IconPlus /> <span className="hidden sm:inline">{t("acct.new")}</span>
+      <Button variant="primary" onClick={() => setCreating(true)} className="sm:ml-auto" aria-label={createLabel}>
+        <IconPlus /> <span className="hidden sm:inline">{createLabel}</span>
       </Button>
     </div>
     </div>
@@ -287,7 +289,7 @@ export function AccountsPage() {
         </Sheet>
       )}
 
-      <Sheet open={creating} onClose={() => setCreating(false)} title={t("acct.new")} wide>
+      <Sheet open={creating} onClose={() => setCreating(false)} title={createLabel} wide>
         {creating && (
           <AccountForm
             defaultKind={kind || "credit_card"}
