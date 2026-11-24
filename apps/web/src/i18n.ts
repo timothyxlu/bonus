@@ -232,6 +232,7 @@ const zhCN = {
   "certificate.add": "添加免房券",
   "certificate.edit": "编辑免房券",
   "certificate.empty": "还没有已发放的酒店免房券",
+  "certificate.emptyUnused": "没有未使用的酒店免房券",
   "certificate.account": "卡片 / 账户",
   "certificate.name": "名称",
   "certificate.program": "酒店 / 会员计划",

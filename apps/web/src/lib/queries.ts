@@ -10,8 +10,12 @@ export const useProducts = () => useQuery({ queryKey: ["products"], queryFn: () 
 export const useInstitutions = () =>
   useQuery({ queryKey: ["institutions"], queryFn: () => api.get<Institution[]>("/institutions"), staleTime: 5 * 60_000 });
 export const useBenefits = () => useQuery({ queryKey: ["benefits"], queryFn: () => api.get<Benefit[]>("/benefits") });
-export const useHotelCertificates = () =>
-  useQuery({ queryKey: ["hotel-certificates"], queryFn: () => api.get<HotelCertificate[]>("/hotel-certificates") });
+export type HotelCertificateFilter = "unused" | undefined;
+export const hotelCertificatesPath = (status: HotelCertificateFilter) =>
+  `/hotel-certificates${status ? `?status=${status}` : ""}`;
+export const hotelCertificatesQueryKey = (status: HotelCertificateFilter) => ["hotel-certificates", status ?? "all"] as const;
+export const useHotelCertificates = (status?: HotelCertificateFilter) =>
+  useQuery({ queryKey: hotelCertificatesQueryKey(status), queryFn: () => api.get<HotelCertificate[]>(hotelCertificatesPath(status)) });
 export const useBonuses = () => useQuery({ queryKey: ["bonuses"], queryFn: () => api.get<UpcomingBonus[]>("/bonuses") });
 export const useOpportunities = (archived: boolean) =>
   useQuery({ queryKey: ["opportunities", archived], queryFn: () => api.get<Opportunity[]>(`/opportunities${archived ? "?archived=1" : ""}`) });
