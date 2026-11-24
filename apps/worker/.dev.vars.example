@@ -3,3 +3,6 @@
 # for /api and for the MCP /authorize consent page.
 DEV_USER_EMAIL=dev@example.com
 MCP_RESOURCE=http://localhost:8787/mcp
+
+# Card / gift-card secret encryption (32 random bytes, base64): openssl rand -base64 32
+# CARD_ENCRYPTION_KEY=

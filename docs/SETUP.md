@@ -105,6 +105,32 @@ checkout with `cd apps/worker && npx wrangler secret put <NAME>`:
 | `ACCESS_TEAM_DOMAIN` | `https://<your-team>.cloudflareaccess.com` |
 | `ACCESS_AUD` | AUD tag of the `bonus` app from step 3 |
 | `ALLOWED_EMAILS` | *(optional, recommended)* your email; comma-separated list. Checked by the Worker for `/api` and `/authorize`, on top of the Access policy |
+| `CARD_ENCRYPTION_KEY` | Encryption key for card / gift-card secrets (see below). Without a valid key the feature is disabled (never plaintext) |
+
+### Card secret encryption key (`CARD_ENCRYPTION_KEY`)
+
+Full card numbers, expiry, CVV and gift-card numbers / PINs are encrypted in D1 with AES-256-GCM.
+The key must be **32 random bytes, base64-encoded**:
+
+```sh
+openssl rand -base64 32          # prints the key; copy it, don't save it in a file in the repo
+cd apps/worker && npx wrangler secret put CARD_ENCRYPTION_KEY   # paste when prompted
+```
+
+Or in the dashboard: Workers & Pages → bonus → Settings → Variables and Secrets → Add → type **Secret**.
+If the value is missing or does not decode to exactly 32 bytes, the 卡片信息 section shows "key missing / invalid"
+and nothing can be saved or revealed.
+
+**Back up the key** (e.g. in your password manager). Values encrypted with a lost key cannot be recovered.
+
+**Rotating the key**
+
+1. Generate a new key (`openssl rand -base64 32`).
+2. Keep the old one readable: set secret `CARD_ENCRYPTION_KEYS_OLD` = `k1:<old key>` (comma-separate several `id:key` pairs).
+3. Set secret `CARD_ENCRYPTION_KEY` = the new key and secret/var `CARD_ENCRYPTION_KEY_ID` = `k2` (any new id; the first key's id is `k1`).
+4. While signed in to the app, call `POST /api/secrets/rotate` (e.g. from the browser devtools console:
+   `fetch("/api/secrets/rotate", { method: "POST" }).then(r => r.json())`). It re-encrypts everything with `k2`.
+5. Remove `CARD_ENCRYPTION_KEYS_OLD`.
 
 Secrets take effect immediately; no redeploy needed.
 

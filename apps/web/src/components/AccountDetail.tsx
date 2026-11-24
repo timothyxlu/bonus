@@ -8,6 +8,7 @@ import type { AccountDetail as Detail, Benefit, Bonus } from "../lib/types";
 import { AccountForm, ProductSelect } from "./AccountForm";
 import { BonusProgress } from "./BonusRow";
 import { KindIcon } from "./KindIcon";
+import { SecretSection } from "./SecretSection";
 import { Badge, Button, ErrorText, Field, Input, ProgressBar, Select, Sheet, Spinner, statusTone } from "./ui";
 
 export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: () => void }) {
@@ -63,6 +64,7 @@ export function AccountDetailView({ id, onDeleted }: { id: string; onDeleted: ()
         {data.notes && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{data.notes}</p>}
       </header>
 
+      {(data.kind === "credit_card" || data.kind === "gift_card") && <SecretSection accountId={data.id} kind={data.kind} last4={data.last4} />}
       <BonusesSection account={data} />
       {data.kind !== "gift_card" && <BenefitsSection account={data} />}
       <TimelineSection account={data} />

@@ -20,6 +20,11 @@ export interface ImportResult {
  * Idempotent-ish: an account with the same product, open date and last4 is skipped.
  */
 export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { dryRun?: boolean } = {}): Promise<ImportResult> {
+  // Card / gift-card secrets are web-only: refuse them outright rather than silently dropping.
+  const SECRET_KEYS = ["pan", "cardNumber", "number", "cvv", "cvc", "exp", "expiry", "pin", "secret", "secrets"];
+  const rawAccounts = (raw as { accounts?: unknown })?.accounts;
+  if (Array.isArray(rawAccounts) && rawAccounts.some((a) => a && typeof a === "object" && SECRET_KEYS.some((k) => k in (a as object))))
+    throw new BadRequestError("Import cannot contain card numbers, expiry, CVV or PINs; add them on the account page instead");
   const parsed = importPayload.safeParse(raw);
   if (!parsed.success) throw new BadRequestError(`Invalid import payload: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
   const payload: ImportPayload = parsed.data;

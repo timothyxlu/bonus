@@ -258,3 +258,38 @@ export const appMeta = sqliteTable("app_meta", {
 });
 
 export type CatalogOverride = typeof catalogOverrides.$inferSelect;
+
+/**
+ * Encrypted card / gift-card secrets (full number, expiry, CVV, PIN). One row per account,
+ * in its own table so no normal query or MCP code path can select it by accident.
+ * Value = AES-256-GCM(JSON payload) with AAD bound to owner, account and kind.
+ */
+export const accountSecrets = sqliteTable("account_secrets", {
+  accountId: text("account_id")
+    .primaryKey()
+    .references(() => accounts.id, { onDelete: "cascade" }),
+  ownerId: text("owner_id").notNull(),
+  kind: text("kind").$type<AccountKind>().notNull(),
+  /** Envelope format version. */
+  version: integer("version").notNull().default(1),
+  keyId: text("key_id").notNull(),
+  iv: text("iv").notNull(),
+  ciphertext: text("ciphertext").notNull(),
+  /** Which fields are set (names only, never values) so the UI can mask without decrypting. */
+  fields: text("fields", { mode: "json" }).$type<string[]>().notNull().default([]),
+  updatedAt: updatedAt(),
+});
+
+/** Who did what with a secret, and when. Never contains values. */
+export const secretAudit = sqliteTable(
+  "secret_audit",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    accountId: text("account_id").notNull(),
+    action: text("action").$type<"write" | "reveal" | "delete" | "reveal_denied" | "rotate">().notNull(),
+    actor: text("actor").notNull(),
+    at: createdAt(),
+  },
+  (t) => [index("secret_audit_owner_idx").on(t.ownerId, t.action, t.at)],
+);

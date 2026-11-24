@@ -63,7 +63,14 @@ Notes:
   every query by the user's email (`owner_id`). MCP tokens carry the same email, so web and MCP see the
   same data: `/authorize` sits behind Access, verifies the Access JWT and only asks for consent
   (no upstream IdP). Optional `ALLOWED_EMAILS` allowlist on top of Access policies.
-- **Privacy**: only the trailing 4 or 5 digits are accepted (Amex shows 5), validated in the API and by a DB `CHECK`.
+- **Privacy**: account rows hold only the trailing 4 or 5 digits (Amex shows 5), validated in the API and by a DB `CHECK`.
+- **Card secrets (web only)**: full card number / expiry / CVV and gift-card number / PIN can be saved per account.
+  They are encrypted in D1 with AES-256-GCM (WebCrypto, random 96-bit IV per value, AAD binding owner + account + kind,
+  key id stored for rotation) using the `CARD_ENCRYPTION_KEY` Worker secret, in a separate `account_secrets` table that
+  no normal query joins. They are never returned by MCP, list endpoints or import/export, and never logged. Reveal is a
+  POST that needs an Access login from the last 15 minutes, is rate-limited (10 per 10 min) and audited (no values),
+  and the UI re-masks after 30 s. All `/api` responses are `Cache-Control: no-store` and the service worker never
+  caches `/api`. Storing CVVs is your own decision; see docs/SETUP.md for the key and rotation.
   The repo contains only a generic product catalog; real history is imported through the app.
 
 ## Development

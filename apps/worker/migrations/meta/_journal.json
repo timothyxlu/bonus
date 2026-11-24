@@ -29,6 +29,13 @@
       "when": 1795480529572,
       "tag": "0003_last_digits",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1795481132264,
+      "tag": "0004_account_secrets",
+      "breakpoints": true
     }
   ]
 }

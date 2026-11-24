@@ -5,6 +5,8 @@ export interface Identity {
   email: string;
   sub?: string;
   source: "access" | "dev" | "mcp";
+  /** When the Access login happened (JWT iat, seconds). Used to require a recent login for secrets. */
+  iat?: number;
 }
 
 export class AuthError extends Error {
@@ -53,7 +55,9 @@ export function emailAllowed(env: Env, email: string) {
  */
 export async function verifyAccessRequest(request: Request, env: Env): Promise<Identity> {
   if (env.DEV_USER_EMAIL && isLocalRequest(request)) {
-    return { email: env.DEV_USER_EMAIL.toLowerCase(), source: "dev" };
+    // Local dev only: the login time can be simulated with X-Dev-Auth-Iat (tests of the re-auth check).
+    const simulated = Number(request.headers.get("X-Dev-Auth-Iat"));
+    return { email: env.DEV_USER_EMAIL.toLowerCase(), source: "dev", iat: Number.isFinite(simulated) && simulated > 0 ? simulated : Math.floor(Date.now() / 1000) };
   }
   if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) {
     throw new AuthError("Server is missing ACCESS_TEAM_DOMAIN / ACCESS_AUD configuration", 401);
@@ -76,7 +80,7 @@ export async function verifyAccessToken(token: string, env: Env, keys: JWTVerify
   const email = typeof payload.email === "string" ? payload.email.toLowerCase() : undefined;
   if (!email) throw new AuthError("Access token has no email (service tokens are not supported)", 403);
   if (!emailAllowed(env, email)) throw new AuthError("This account is not allowed", 403);
-  return { email, sub: payload.sub, source: "access" };
+  return { email, sub: payload.sub, source: "access", iat: payload.iat };
 }
 
 export function readCookie(request: Request, name: string): string | null {

@@ -2,6 +2,7 @@ import { benefitStatus, bonusProgress, type EventType } from "@bonus/core";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { z } from "zod";
 import {
+  accountSecrets,
   accounts,
   benefits,
   benefitUses,
@@ -232,6 +233,7 @@ export async function deleteAccount(ctx: ServiceContext, id: string) {
   const stmts: any[] = [];
   if (benefitIds.length) stmts.push(ctx.db.delete(benefitUses).where(inArray(benefitUses.benefitId, benefitIds)));
   stmts.push(
+    ctx.db.delete(accountSecrets).where(eq(accountSecrets.accountId, id)),
     ctx.db.delete(benefits).where(eq(benefits.accountId, id)),
     ctx.db.delete(bonuses).where(eq(bonuses.accountId, id)),
     ctx.db.delete(events).where(eq(events.accountId, id)),
