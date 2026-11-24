@@ -71,6 +71,7 @@ describe("account secrets (web only)", () => {
     giftId = (await call("POST", "/accounts", { kind: "gift_card", institutionId: inst.body.id, nickname: "Grocer card" })).body.id;
     expect((await call("PUT", `/accounts/${giftId}/secret`, { pan: PAN })).status).toBe(400);
     expect((await call("PUT", `/accounts/${giftId}/secret`, { number: GIFT_NO, pin: GIFT_PIN })).body.stored).toEqual(["number", "pin"]);
+    expect((await call("GET", `/accounts/${giftId}`)).body.last4).toBe("8888");
     const bank = (await call("POST", "/accounts", { kind: "bank_account", institutionId: "chase", nickname: "Checking" })).body.id;
     expect((await call("GET", `/accounts/${bank}/secret`)).body.supported).toBe(false);
     expect((await call("PUT", `/accounts/${bank}/secret`, { number: "1234" })).status).toBe(400);

@@ -13,3 +13,8 @@ export function accountCreationMessageKey(kind: AccountKind | "") {
 export function institutionMessageKey(kind: AccountKind) {
   return kind === "gift_card" ? "acct.merchant" : "acct.institution";
 }
+
+export function giftSecretPayload(number: string, pin: string) {
+  const values = { number: number.trim(), pin: pin.trim() };
+  return Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ""));
+}

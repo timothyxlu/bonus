@@ -65,3 +65,7 @@ export function parseSecretPatch(kind: AccountKind, body: unknown): { ok: true; 
 export function trailingDigits(panDigits: string) {
   return panDigits.length === 15 && /^3[47]/.test(panDigits) ? panDigits.slice(-5) : panDigits.slice(-4);
 }
+
+export function trailingGiftCharacters(number: string) {
+  return number.replace(/[\s-]/g, "").slice(-4);
+}

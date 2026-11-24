@@ -7,7 +7,7 @@ import type { Identity } from "../auth/access-jwt";
 import { accounts, accountSecrets, secretAudit } from "../db/schema";
 import type { Env } from "../env";
 import { decryptPayload, encryptPayload, loadKeyring, SecretsUnavailableError } from "../secrets/crypto";
-import { parseSecretPatch, SECRET_FIELDS, trailingDigits } from "../secrets/schemas";
+import { parseSecretPatch, SECRET_FIELDS, trailingDigits, trailingGiftCharacters } from "../secrets/schemas";
 import { BadRequestError, NotFoundError, newId, nowIso, type ServiceContext } from "./context";
 
 /** A reveal needs an Access login at most this old. */
@@ -91,6 +91,9 @@ export async function writeSecret(ctx: ServiceContext, env: Env, accountId: stri
   // Keep the visible trailing digits in sync with the stored card number.
   if (account.kind === "credit_card" && typeof parsed.data.pan === "string") {
     stmts.push(ctx.db.update(accounts).set({ last4: trailingDigits(merged.pan!), updatedAt: nowIso() }).where(eq(accounts.id, accountId)));
+  }
+  if (account.kind === "gift_card" && typeof parsed.data.number === "string") {
+    stmts.push(ctx.db.update(accounts).set({ last4: trailingGiftCharacters(merged.number!), updatedAt: nowIso() }).where(eq(accounts.id, accountId)));
   }
   stmts.push(ctx.db.insert(secretAudit).values({ id: newId(), ownerId: ctx.ownerId, accountId, action: "write", actor: ctx.ownerId }));
   await ctx.db.batch(stmts as [any, ...any[]]);

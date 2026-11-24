@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { b64, decodeKey, decryptPayload, DecryptError, encryptPayload, loadKeyring } from "../src/secrets/crypto";
-import { luhnValid, parseSecretPatch, trailingDigits } from "../src/secrets/schemas";
+import { luhnValid, parseSecretPatch, trailingDigits, trailingGiftCharacters } from "../src/secrets/schemas";
 import { isRecentLogin } from "../src/services/secrets";
 
 const key = (fill: number) => b64.encode(new Uint8Array(32).fill(fill));
@@ -69,6 +69,7 @@ describe("secret validation", () => {
     expect(parseSecretPatch("bank_account", { pan: "x" }).ok).toBe(false);
     expect(trailingDigits("378282246310005")).toBe("10005");
     expect(trailingDigits("4111111111111111")).toBe("1111");
+    expect(trailingGiftCharacters("GIFT-7777-8888")).toBe("8888");
   });
 
   it("recent-login window", () => {
