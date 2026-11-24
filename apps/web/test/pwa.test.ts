@@ -32,4 +32,11 @@ describe("service worker", () => {
   it("never intercepts API, MCP, OAuth or Cloudflare paths", () => {
     for (const p of ["api", "mcp", "authorize", "token", "register", "\\.well-known", "cdn-cgi"]) expect(sw).toContain(`/^\\/${p}`);
   });
+  it("bypasses the card-secret endpoints and caches nothing else under /api", () => {
+    const bypass: RegExp[] = eval(sw.match(/const BYPASS = (\[.*\]);/)![1]!);
+    const skipped = (p: string) => bypass.some((re) => re.test(p));
+    for (const p of ["/api/accounts/abc/secret", "/api/accounts/abc/secret/reveal", "/api/secrets/rotate", "/api/secrets/status", "/api", "/mcp", "/authorize", "/token", "/.well-known/oauth-authorization-server", "/cdn-cgi/access/authorized"])
+      expect(skipped(p), p).toBe(true);
+    for (const p of ["/", "/assets/index-abc.js", "/icons/icon-192.png", "/apiary"]) expect(skipped(p), p).toBe(false);
+  });
 });

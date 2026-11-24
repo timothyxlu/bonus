@@ -4,7 +4,8 @@
  * Rules:
  *  - Only same-origin GET requests are ever looked at.
  *  - Never touched (the browser handles them as if there were no SW):
- *    /api (incl. upcoming /api/accounts/*\/secret*), /mcp, OAuth (/authorize, /token,
+ *    /api (incl. BONUS-8 card secrets: /api/accounts/:id/secret[/reveal], /api/secrets/*;
+ *    the API also sends Cache-Control: no-store), /mcp, OAuth (/authorize, /token,
  *    /register, /.well-known), Cloudflare (/cdn-cgi, incl. the Access login callback),
  *    and any request carrying an Authorization header.
  *  - Only content-hashed build output (/assets/*) and a few static PWA files are cached.
