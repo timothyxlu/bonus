@@ -269,7 +269,9 @@ export function AccountsPage() {
                     <div className="mt-3 space-y-1">
                       <div className="flex justify-between text-xs text-muted">
                         <span>
-                          {fmtUsd(a.activeBonus.progress)} / {fmtUsd(a.activeBonus.amountRequired)}
+                          {a.activeBonus.steps?.length
+                            ? t("bonus.stepsMet", { met: a.activeBonus.stepsMet, total: a.activeBonus.steps.length })
+                            : `${fmtUsd(a.activeBonus.progress)} / ${fmtUsd(a.activeBonus.amountRequired)}`}
                         </span>
                         <span>{daysLabel(a.activeBonus)}</span>
                       </div>

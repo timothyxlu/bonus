@@ -4,6 +4,7 @@ import type {
   AccountKind,
   AccountStatus,
   BenefitPeriod,
+  BonusStep,
   BenefitUnit,
   BonusRequirementType,
   BonusStatus,
@@ -144,6 +145,8 @@ export const bonuses = sqliteTable(
     status: text("status").$type<BonusStatus>().notNull().default("in_progress"),
     /** Date the bonus posted - feeds the 24/48-month rules. */
     earnedAt: text("earned_at"),
+    /** Multi-step conditions that together make up this one bonus (e.g. deposit, then hold a balance). */
+    steps: text("steps", { mode: "json" }).$type<BonusStep[]>().notNull().default([]),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

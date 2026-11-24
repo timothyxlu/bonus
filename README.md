@@ -51,12 +51,17 @@ Notes:
   `check_eligibility`, `five_24_status`, plus `list_products`, `list_bonuses`, the opportunity tools
   `list_opportunities` / `add_offer` / `update_offer` (Claude can research current offers and record them),
   benefit editing `add_benefit` / `update_benefit` / `delete_benefit`,
+  bonus editing `add_bonus` / `update_bonus` / `delete_bonus` (including multi-step bonuses),
   catalog editing `list_institutions` / `add_institution` / `update_institution` / `add_product` /
   `update_product` / `archive_product`, and account editing `update_account` / `delete_account`.
 - **Editable catalog (产品库)**: seeded products and institutions are shared defaults. Editing one stores a
   per-owner override (merged on read; resyncs never clobber it, "恢复默认" drops it). Your own products are
   edited in place. Products are archived, never deleted. The shipped catalog re-syncs automatically when
   `CATALOG_VERSION` changes.
+- **Multi-step bonuses**: one bonus can carry an ordered list of conditions (`steps`), e.g. a bank bonus that needs
+  "deposit $15k of new money within 30 days" and then "keep $15k through day 90". Each step is done, holding (balance
+  is there, hold date not reached), pending or overdue; the bonus shows overall progress and the next date that matters,
+  and moves to met once every step is met.
 - **机会 (opportunities)**: offers you might open next, valued in USD (points at per-programme
   cents, overridable), net of first-year fee and costs, ranked, and checked against your history:
   the issuer rules engine for cards, a same-institution cooldown for bank and gift-card offers.

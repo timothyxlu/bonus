@@ -41,21 +41,23 @@ describe("loyalty balances UI", () => {
     const disclosure = host.querySelector<HTMLButtonElement>('button[aria-controls^="loyalty-balances-"]')!;
     const content = document.getElementById(disclosure.getAttribute("aria-controls")!)!;
     const add = host.querySelector<HTMLButtonElement>('button[aria-label="添加余额"]')!;
-    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
-    expect(disclosure.getAttribute("aria-label")).toBe("收起积分余额");
-    expect(content.hidden).toBe(false);
+    // Collapsed by default.
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    expect(disclosure.getAttribute("aria-label")).toBe("展开积分余额");
+    expect(content.hidden).toBe(true);
 
     act(() => add.click());
-    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     expect(host.querySelector('[role="dialog"]')).not.toBeNull();
 
     act(() => disclosure.click());
-    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
-    expect(content.hidden).toBe(true);
-    act(() => disclosure.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })));
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
-    act(() => disclosure.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true })));
+    expect(disclosure.getAttribute("aria-label")).toBe("收起积分余额");
+    expect(content.hidden).toBe(false);
+    act(() => disclosure.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })));
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    act(() => disclosure.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true })));
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
 
     act(() => root.unmount());
     host.remove();

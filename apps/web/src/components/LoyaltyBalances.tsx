@@ -13,7 +13,7 @@ const categoryTone = (category: LoyaltyCategory) => category === "flight" ? "ind
 export function LoyaltyBalances() {
   const { data = [], isLoading, error } = useLoyaltyBalances();
   const [editing, setEditing] = useState<LoyaltyBalance | "new" | null>(null);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const contentId = `loyalty-balances-${useId().replace(/:/g, "")}`;
   const remove = useMutate<string, { deleted: string }>((id) => api.del(`/loyalty-balances/${id}`));
   const grouped = useMemo(() => Object.fromEntries(LOYALTY_CATEGORIES.map((category) => [category, data.filter((row) => row.category === category)])) as Record<LoyaltyCategory, LoyaltyBalance[]>, [data]);

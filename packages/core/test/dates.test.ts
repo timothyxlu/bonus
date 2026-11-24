@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { BonusStep } from "../src";
 import { addDays, addMonths, annualAmount, benefitInEffect, cycleFor, daysBetween, isIsoDate, monthDrop, periodFor, benefitStatus, bonusProgress } from "../src";
 
 describe("dates", () => {
@@ -109,5 +110,52 @@ describe("bonus progress", () => {
     expect(p.remaining).toBe(3000);
     expect(p.daysLeft).toBe(10);
     expect(p.overdue).toBe(false);
+  });
+
+  const step = (s: Partial<BonusStep>): BonusStep => ({ type: "other", amount: null, progress: 0, dueBy: null, holdFrom: null, holdUntil: null, description: null, done: false, ...s });
+  const bankBonus = (deposit: number, balance: number) => ({
+    amountRequired: null,
+    progress: 0,
+    deadline: null,
+    status: "in_progress" as const,
+    steps: [
+      step({ type: "deposit", amount: 15000, progress: deposit, dueBy: "2026-12-01" }),
+      step({ type: "balance", amount: 15000, progress: balance, holdUntil: "2027-02-28" }),
+    ],
+  });
+
+  it("tracks a deposit-then-hold bank bonus as one bonus", () => {
+    // Deposit not made yet: first step pending, counting down to its due date.
+    const a = bonusProgress(bankBonus(5000, 5000), "2026-11-23");
+    expect(a.steps.map((s) => s.state)).toEqual(["pending", "pending"]);
+    expect(a.currentStep).toBe(0);
+    expect(a.daysLeft).toBe(8);
+    expect(a.remaining).toBe(10000);
+    expect(a.allStepsMet).toBe(false);
+
+    // Deposit made, balance kept: holding until 02-28, time-based ratio from the deposit due date.
+    const b = bonusProgress(bankBonus(15000, 15000), "2026-12-31");
+    expect(b.steps.map((s) => s.state)).toEqual(["done", "holding"]);
+    expect(b.currentStep).toBe(1);
+    expect(b.dueDate).toBe("2027-02-28");
+    expect(b.daysLeft).toBe(59);
+    expect(b.steps[1]!.ratio).toBeCloseTo(30 / 90, 5);
+    expect(b.overdue).toBe(false);
+
+    // Hold date passed with the balance still there: every condition met.
+    const c = bonusProgress(bankBonus(15000, 15000), "2027-03-01");
+    expect(c.allStepsMet).toBe(true);
+    expect(c.stepsMet).toBe(2);
+    expect(c.ratio).toBe(1);
+    expect(c.currentStep).toBeNull();
+  });
+
+  it("flags a missed deposit deadline as overdue and needs done for amount-less steps", () => {
+    const late = bonusProgress(bankBonus(5000, 5000), "2026-12-02");
+    expect(late.steps[0]!.state).toBe("overdue");
+    expect(late.overdue).toBe(true);
+    const manual = bonusProgress({ amountRequired: null, progress: 0, deadline: null, status: "in_progress", steps: [step({}), step({ done: true })] }, "2026-11-23");
+    expect(manual.steps.map((s) => s.state)).toEqual(["pending", "done"]);
+    expect(manual.ratio).toBe(0.5);
   });
 });

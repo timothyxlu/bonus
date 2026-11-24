@@ -5,6 +5,8 @@ import type {
   BenefitUnit,
   BonusRequirementType,
   BonusStatus,
+  BonusStep,
+  BonusStepState,
   EligibilityResult,
   EventType,
   OwnerType,
@@ -48,6 +50,14 @@ export interface Progress {
   active: boolean;
 }
 
+export interface BonusStepProgress extends BonusStep {
+  state: BonusStepState;
+  ratio: number;
+  remaining: number;
+  dueDate: string | null;
+  daysLeft: number | null;
+}
+
 export interface Bonus extends Progress {
   id: string;
   accountId: string;
@@ -61,6 +71,12 @@ export interface Bonus extends Progress {
   rewardUnit: RewardUnit;
   status: BonusStatus;
   earnedAt: string | null;
+  /** Multi-step conditions (deposit, then hold a balance, ...); empty for a single-condition bonus. */
+  steps: BonusStepProgress[];
+  stepsMet: number;
+  currentStep: number | null;
+  allStepsMet: boolean;
+  dueDate: string | null;
 }
 
 export interface BenefitUse {

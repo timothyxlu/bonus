@@ -1,4 +1,4 @@
-import { annualAmount, benefitStatus, bonusProgress, type AccountKind, type BonusStatus } from "@bonus/core";
+import { annualAmount, benefitStatus, bonusProgress, type AccountKind, type BonusStatus, type BonusStep } from "@bonus/core";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { accounts, benefits, benefitUses, bonuses, institutions, products } from "../db/schema";
@@ -15,13 +15,20 @@ async function requireAccount(ctx: ServiceContext, id: string) {
 
 // ---------------------------------------------------------------- Bonuses
 
+/** Last date any step mentions: the natural overall deadline of a multi-step bonus. */
+function lastStepDate(steps: BonusStep[]) {
+  const dates = steps.flatMap((s) => [s.dueBy, s.holdUntil]).filter((d): d is string => !!d);
+  return dates.length ? dates.sort().at(-1)! : null;
+}
+
 export async function createBonus(ctx: ServiceContext, accountId: string, input: z.infer<typeof bonusInput>) {
   const account = await requireAccount(ctx, accountId);
+  const deadline = input.deadline ?? (input.steps?.length ? lastStepDate(input.steps) : null);
   const [row] = await ctx.db
     .insert(bonuses)
-    .values({ ...input, id: newId(), ownerId: ctx.ownerId, accountId, productId: input.productId ?? account.productId })
+    .values({ ...input, deadline, id: newId(), ownerId: ctx.ownerId, accountId, productId: input.productId ?? account.productId })
     .returning();
-  return row!;
+  return { ...row!, ...bonusProgress(row!, ctx.today) };
 }
 
 async function requireBonus(ctx: ServiceContext, id: string) {
@@ -34,10 +41,16 @@ export async function updateBonus(ctx: ServiceContext, id: string, patch: z.infe
   const current = await requireBonus(ctx, id);
   const set: typeof patch & { updatedAt: string } = { ...patch, updatedAt: nowIso() };
   if (patch.status === "posted" && !current.earnedAt && !patch.earnedAt) set.earnedAt = ctx.today;
-  if (patch.status === undefined && current.status === "in_progress" && current.amountRequired && (patch.progress ?? 0) >= current.amountRequired)
-    set.status = "met";
+  const steps = patch.steps ?? current.steps ?? [];
+  if (patch.status === undefined && current.status === "in_progress") {
+    if (steps.length) {
+      // Every condition met (deposit made, balance held through its date, ...) -> the one bonus is met.
+      if (patch.steps && bonusProgress({ ...current, ...patch, steps }, ctx.today).allStepsMet) set.status = "met";
+    } else if (current.amountRequired && (patch.progress ?? 0) >= current.amountRequired) set.status = "met";
+  }
+  if (patch.steps?.length && patch.deadline === undefined && !current.deadline) set.deadline = lastStepDate(patch.steps);
   const [row] = await ctx.db.update(bonuses).set(set).where(eq(bonuses.id, id)).returning();
-  return row!;
+  return { ...row!, ...bonusProgress(row!, ctx.today) };
 }
 
 export async function deleteBonus(ctx: ServiceContext, id: string) {
@@ -86,7 +99,7 @@ export async function listBonuses(ctx: ServiceContext, filter: BonusFilter = {})
       a.active !== b.active
         ? a.active ? -1 : 1
         : a.active
-          ? (a.deadline ?? "9999-99-99").localeCompare(b.deadline ?? "9999-99-99")
+          ? (a.dueDate ?? "9999-99-99").localeCompare(b.dueDate ?? "9999-99-99")
           : (b.earnedAt ?? b.updatedAt).localeCompare(a.earnedAt ?? a.updatedAt),
     )
     .slice(0, filter.limit ?? 500);
