@@ -173,4 +173,37 @@ describe("REST API", () => {
     const mine = (await res.json()) as any[];
     expect(mine.every((a) => a.ownerId === "tester@example.com")).toBe(true);
   });
+
+  it("CRUDs owner-scoped loyalty balances without merging duplicate program names", async () => {
+    const first = await call("POST", "/loyalty-balances", { category: "flight", program: "Alaska", balance: 97148 });
+    const second = await call("POST", "/loyalty-balances", { category: "flight", program: "Alaska", balance: 83139 });
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(first.body.id).not.toBe(second.body.id);
+
+    const list = await call("GET", "/loyalty-balances?category=flight");
+    expect(list.body.filter((row: any) => row.program === "Alaska").map((row: any) => row.balance)).toEqual([97148, 83139]);
+    expect((await call("GET", "/loyalty-balances?category=bogus")).status).toBe(400);
+    expect((await call("POST", "/loyalty-balances", { category: "hotel", program: "Hyatt", balance: -1 })).status).toBe(400);
+    expect((await call("POST", "/loyalty-balances", { category: "hotel", program: "Hyatt", balance: 1.5 })).status).toBe(400);
+
+    const updated = await call("PATCH", `/loyalty-balances/${first.body.id}`, { balance: 100000, notes: "primary" });
+    expect(updated.body).toMatchObject({ program: "Alaska", balance: 100000, notes: "primary" });
+    expect((await call("DELETE", `/loyalty-balances/${second.body.id}`)).body.deleted).toBe(second.body.id);
+    expect((await call("PATCH", `/loyalty-balances/${second.body.id}`, { balance: 1 })).status).toBe(404);
+  });
+
+  it("imports loyalty balances idempotently and preserves same-program accounts", async () => {
+    const payload = { version: 1, loyaltyBalances: [
+      { category: "flight", program: "Alaska import", balance: 97148 },
+      { category: "flight", program: "Alaska import", balance: 83139 },
+      { category: "credit_card", program: "Amex import", balance: 499000 },
+    ] };
+    expect((await call("POST", "/import?dryRun=1", payload)).body.loyaltyBalancesCreated).toBe(3);
+    expect((await call("POST", "/import", payload)).body.loyaltyBalancesCreated).toBe(3);
+    const again = await call("POST", "/import", payload);
+    expect(again.body.loyaltyBalancesCreated).toBe(0);
+    expect(again.body.skipped).toHaveLength(3);
+    expect((await call("GET", "/loyalty-balances")).body.filter((row: any) => row.program === "Alaska import")).toHaveLength(2);
+  });
 });

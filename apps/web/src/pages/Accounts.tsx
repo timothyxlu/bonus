@@ -2,6 +2,7 @@ import { ACCOUNT_STATUSES, ACCOUNT_KINDS, type AccountKind, type OwnerType } fro
 import { useEffect, useMemo, useState } from "react";
 import { AccountDetailView } from "../components/AccountDetail";
 import { AccountForm } from "../components/AccountForm";
+import { LoyaltyBalances } from "../components/LoyaltyBalances";
 import { daysLabel } from "../components/BonusRow";
 import { KindFilter } from "../components/KindFilter";
 import { OwnerTypeFilter } from "../components/OwnerTypeFilter";
@@ -157,7 +158,9 @@ export function AccountsPage() {
   if (error) return <ErrorText error={error} />;
 
   return (
-    <div className="lg:flex lg:gap-6">
+    <div className="space-y-6">
+      <LoyaltyBalances />
+      <section aria-label={t("acct.title")} className="lg:flex lg:gap-6">
       <div className="min-w-0 flex-1 space-y-3">
         {toolbar}
         {rows.length === 0 ? (
@@ -305,6 +308,7 @@ export function AccountsPage() {
           />
         )}
       </Sheet>
+      </section>
     </div>
   );
 }

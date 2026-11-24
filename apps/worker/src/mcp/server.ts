@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getDb } from "../db/client";
 import type { Env, McpProps } from "../env";
-import { accountInput, accountPatch, benefitInput, benefitPatch, benefitUseInput, eventInput, hotelCertificateInput, hotelCertificatePatch, institutionInput, institutionPatch, isoDate, offerInput, offerPatch, productInput, productPatch } from "../schemas";
+import { accountInput, accountPatch, benefitInput, benefitPatch, benefitUseInput, eventInput, hotelCertificateInput, hotelCertificatePatch, institutionInput, institutionPatch, isoDate, loyaltyBalanceInput, loyaltyBalancePatch, LOYALTY_CATEGORIES, offerInput, offerPatch, productInput, productPatch } from "../schemas";
 import * as catalog from "../services/catalog";
 import * as certificates from "../services/certificates";
 import * as offers from "../services/offers";
@@ -12,6 +12,7 @@ import * as bon from "../services/bonuses";
 import { listProducts } from "../services/catalog";
 import type { ServiceContext } from "../services/context";
 import { checkProductEligibility, getFive24 } from "../services/eligibility";
+import * as loyalty from "../services/loyalty";
 
 const json = (data: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] });
 const fail = (err: unknown) => ({ isError: true, content: [{ type: "text" as const, text: (err as Error).message ?? String(err) }] });
@@ -54,6 +55,44 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
       annotations: { readOnlyHint: true },
     },
     tool(async ({ accountId }) => accounts.getAccount(svc(), accountId)),
+  );
+
+  server.registerTool(
+    "list_loyalty_balances",
+    {
+      description: "List the authenticated user's airline, hotel and credit-card points or miles balances. Duplicate program names are separate accounts.",
+      inputSchema: z.object({ category: z.enum(LOYALTY_CATEGORIES).optional() }),
+      annotations: { readOnlyHint: true },
+    },
+    tool(({ category }) => loyalty.listBalances(svc(), category)),
+  );
+
+  server.registerTool(
+    "add_loyalty_balance",
+    {
+      description: "Add one points or miles balance. category is flight, hotel or credit_card; program is a display label and need not be unique.",
+      inputSchema: loyaltyBalanceInput,
+    },
+    tool((input) => loyalty.createBalance(svc(), input)),
+  );
+
+  server.registerTool(
+    "update_loyalty_balance",
+    {
+      description: "Update a loyalty balance's category, program label, non-negative integer balance or notes.",
+      inputSchema: loyaltyBalancePatch.extend({ balanceId: z.string() }),
+    },
+    tool(({ balanceId, ...patch }) => loyalty.updateBalance(svc(), balanceId, patch)),
+  );
+
+  server.registerTool(
+    "delete_loyalty_balance",
+    {
+      description: "Permanently delete one loyalty balance by id.",
+      inputSchema: z.object({ balanceId: z.string() }),
+      annotations: { destructiveHint: true },
+    },
+    tool(({ balanceId }) => loyalty.deleteBalance(svc(), balanceId)),
   );
 
   server.registerTool(

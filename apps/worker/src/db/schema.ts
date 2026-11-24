@@ -240,6 +240,27 @@ export type Benefit = typeof benefits.$inferSelect;
 export type BenefitUse = typeof benefitUses.$inferSelect;
 export type HotelCertificate = typeof hotelCertificates.$inferSelect;
 
+/** A points or miles balance. Program names are deliberately not unique: one owner may have multiple accounts in a program. */
+export const loyaltyBalances = sqliteTable(
+  "loyalty_balances",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    category: text("category").$type<"flight" | "hotel" | "credit_card">().notNull(),
+    program: text("program").notNull(),
+    balance: integer("balance").notNull(),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("loyalty_balances_owner_category_idx").on(t.ownerId, t.category),
+    check("loyalty_balances_balance_check", sql`${t.balance} >= 0`),
+  ],
+);
+
+export type LoyaltyBalance = typeof loyaltyBalances.$inferSelect;
+
 /**
  * Offers the owner might go after next (credit card sign-up offers, bank account
  * bonuses, gift card promos). Maintained in the app or by Claude via MCP; drives the

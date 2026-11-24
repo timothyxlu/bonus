@@ -20,6 +20,9 @@ import {
   hotelCertificateInput,
   hotelCertificatePatch,
   hotelCertificateUseInput,
+  loyaltyBalanceInput,
+  loyaltyBalancePatch,
+  LOYALTY_CATEGORIES,
   offerInput,
   offerPatch,
   isoDate,
@@ -40,6 +43,7 @@ import * as webauthn from "../services/webauthn";
 import { BiometricNotConfiguredError, WebAuthnChallengeError } from "../services/webauthn";
 import { DecryptError, SecretsUnavailableError } from "../secrets/crypto";
 import * as offersSvc from "../services/offers";
+import * as loyalty from "../services/loyalty";
 
 type Vars = { identity: Identity; svc: ServiceContext };
 export type ApiEnv = { Bindings: Env; Variables: Vars };
@@ -184,6 +188,16 @@ export function createApi() {
   api.get("/accounts/:id", async (c) => c.json(await accounts.getAccount(c.var.svc, c.req.param("id"))));
   api.patch("/accounts/:id", async (c) => c.json(await accounts.updateAccount(c.var.svc, c.req.param("id"), await body(c, accountPatch))));
   api.delete("/accounts/:id", async (c) => c.json(await accounts.deleteAccount(c.var.svc, c.req.param("id"))));
+
+  // Loyalty points and miles (separate records even when program names match)
+  api.get("/loyalty-balances", async (c) => {
+    const category = c.req.query("category");
+    if (category && !(LOYALTY_CATEGORIES as readonly string[]).includes(category)) throw new BadRequestError("Invalid loyalty category");
+    return c.json(await loyalty.listBalances(c.var.svc, category));
+  });
+  api.post("/loyalty-balances", async (c) => c.json(await loyalty.createBalance(c.var.svc, await body(c, loyaltyBalanceInput)), 201));
+  api.patch("/loyalty-balances/:id", async (c) => c.json(await loyalty.updateBalance(c.var.svc, c.req.param("id"), await body(c, loyaltyBalancePatch))));
+  api.delete("/loyalty-balances/:id", async (c) => c.json(await loyalty.deleteBalance(c.var.svc, c.req.param("id"))));
 
   // Events
   api.post("/accounts/:id/events", async (c) => c.json(await accounts.recordEvent(c.var.svc, c.req.param("id"), await body(c, eventInput)), 201));
