@@ -190,6 +190,30 @@ export const benefitUseInput = z.object({
   note: optText(500),
 });
 
+export const hotelCertificateInput = z
+  .object({
+    benefitId: z.string().min(1).nullish(),
+    name: z.string().trim().min(1).max(120).default("Free night certificate"),
+    hotelProgram: z.string().trim().min(1).max(120),
+    expiresOn: isoDate,
+    usedAt: optDate,
+    notes: optText(1000),
+  })
+  .strict();
+
+export const hotelCertificatePatch = z
+  .object({
+    benefitId: z.string().min(1).nullable().optional(),
+    name: z.string().trim().min(1).max(120).optional(),
+    hotelProgram: z.string().trim().min(1).max(120).optional(),
+    expiresOn: isoDate.optional(),
+    usedAt: optDate,
+    notes: optText(1000),
+  })
+  .strict();
+
+export const hotelCertificateUseInput = z.object({ usedAt: isoDate.optional() }).strict();
+
 /** Bulk import format (JSON). See docs/IMPORT.md. */
 export const importAccount = accountBase.extend({
   /** Catalog product id, or a product name to match case-insensitively. */

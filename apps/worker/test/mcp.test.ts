@@ -34,7 +34,7 @@ describe("MCP server", () => {
     const r = await rpc("tools/list", {});
     const names = r.result.tools.map((t: any) => t.name).sort();
     expect(names).toEqual(
-      ["add_account", "add_benefit", "update_benefit", "delete_benefit", "delete_account", "add_institution", "add_offer", "add_product", "archive_product", "list_institutions", "list_opportunities", "update_account", "update_institution", "update_offer", "update_product", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "record_event", "upcoming_deadlines"].sort(),
+      ["add_account", "add_benefit", "add_hotel_certificate", "update_benefit", "update_hotel_certificate", "delete_benefit", "delete_hotel_certificate", "delete_account", "add_institution", "add_offer", "add_product", "archive_product", "list_institutions", "list_opportunities", "list_hotel_certificates", "update_account", "update_institution", "update_offer", "update_product", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "mark_hotel_certificate_used", "record_event", "upcoming_deadlines"].sort(),
     );
   });
 

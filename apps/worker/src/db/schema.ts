@@ -205,6 +205,32 @@ export const benefitUses = sqliteTable(
   (t) => [index("benefit_uses_benefit_idx").on(t.benefitId, t.usedOn)],
 );
 
+/** One actually issued hotel free-night certificate, tracked independently from its recurring entitlement. */
+export const hotelCertificates = sqliteTable(
+  "hotel_certificates",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    /** Optional recurring free-night benefit that produced this certificate. */
+    benefitId: text("benefit_id").references(() => benefits.id, { onDelete: "set null" }),
+    name: text("name").notNull().default("Free night certificate"),
+    hotelProgram: text("hotel_program").notNull(),
+    expiresOn: text("expires_on").notNull(),
+    usedAt: text("used_at"),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("hotel_certificates_owner_expiry_idx").on(t.ownerId, t.expiresOn),
+    index("hotel_certificates_account_idx").on(t.accountId),
+    index("hotel_certificates_benefit_idx").on(t.benefitId),
+  ],
+);
+
 export type Institution = typeof institutions.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
@@ -212,6 +238,7 @@ export type AccountEvent = typeof events.$inferSelect;
 export type Bonus = typeof bonuses.$inferSelect;
 export type Benefit = typeof benefits.$inferSelect;
 export type BenefitUse = typeof benefitUses.$inferSelect;
+export type HotelCertificate = typeof hotelCertificates.$inferSelect;
 
 /**
  * Offers the owner might go after next (credit card sign-up offers, bank account

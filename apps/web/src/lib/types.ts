@@ -102,6 +102,22 @@ export interface Benefit {
   accountLabel?: string;
 }
 
+export interface HotelCertificate {
+  id: string;
+  accountId: string;
+  benefitId: string | null;
+  name: string;
+  hotelProgram: string;
+  expiresOn: string;
+  usedAt: string | null;
+  notes: string | null;
+  status: "unused" | "used" | "expired";
+  daysUntilExpiration: number;
+  accountLabel: string;
+  productName: string | null;
+  productProgram: string | null;
+}
+
 export interface AccountEvent {
   id: string;
   accountId: string;

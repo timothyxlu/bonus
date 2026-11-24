@@ -291,7 +291,7 @@ function periodLabel(b: Pick<Benefit, "period" | "everyMonths">) {
   return td(`period.${b.period}`);
 }
 
-export function BenefitItem({ b, showAccount, allowEdit }: { b: Benefit; showAccount?: boolean; allowEdit?: boolean }) {
+export function BenefitItem({ b, showAccount, allowEdit, onCreateCertificate }: { b: Benefit; showAccount?: boolean; allowEdit?: boolean; onCreateCertificate?: () => void }) {
   const isUsd = (b.unit ?? "USD") === "USD";
   const [using, setUsing] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -378,6 +378,11 @@ export function BenefitItem({ b, showAccount, allowEdit }: { b: Benefit; showAcc
             {allowEdit && (
               <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
                 {t("common.edit")}
+              </Button>
+            )}
+            {onCreateCertificate && (
+              <Button size="sm" variant="ghost" onClick={onCreateCertificate}>
+                {t("certificate.createFromBenefit")}
               </Button>
             )}
           </>

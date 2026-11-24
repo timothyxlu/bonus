@@ -3,8 +3,9 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getDb } from "../db/client";
 import type { Env, McpProps } from "../env";
-import { accountInput, accountPatch, benefitInput, benefitPatch, benefitUseInput, eventInput, institutionInput, institutionPatch, isoDate, offerInput, offerPatch, productInput, productPatch } from "../schemas";
+import { accountInput, accountPatch, benefitInput, benefitPatch, benefitUseInput, eventInput, hotelCertificateInput, hotelCertificatePatch, institutionInput, institutionPatch, isoDate, offerInput, offerPatch, productInput, productPatch } from "../schemas";
 import * as catalog from "../services/catalog";
+import * as certificates from "../services/certificates";
 import * as offers from "../services/offers";
 import * as accounts from "../services/accounts";
 import * as bon from "../services/bonuses";
@@ -249,6 +250,59 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
     tool(async ({ benefitId, usedOn, amount, note }) =>
       bon.markBenefitUsed(svc(), benefitId, { usedOn: usedOn ?? now(), amount: amount ?? 0, note }),
     ),
+  );
+
+  server.registerTool(
+    "list_hotel_certificates",
+    {
+      description:
+        "List individually issued hotel free-night certificates, separate from recurring benefit definitions. Returns account/card and hotel program context, expiration, derived unused|used|expired status and daysUntilExpiration.",
+      inputSchema: z.object({
+        accountId: z.string().optional(),
+        status: z.enum(["unused", "used", "expired"]).optional(),
+        expiringWithinDays: z.number().int().min(0).max(3650).optional(),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    tool(async (a) => certificates.listCertificates(svc(), a)),
+  );
+
+  server.registerTool(
+    "add_hotel_certificate",
+    {
+      description:
+        "Track one actually issued hotel free-night certificate. accountId, hotelProgram and expiresOn (YYYY-MM-DD) are required. benefitId may link it to the recurring free_night/certificate entitlement that produced it; no expiry is inferred from that benefit.",
+      inputSchema: hotelCertificateInput.extend({ accountId: z.string() }),
+    },
+    tool(async ({ accountId, ...input }) => certificates.createCertificate(svc(), accountId, input)),
+  );
+
+  server.registerTool(
+    "update_hotel_certificate",
+    {
+      description: "Edit an issued hotel certificate. Only fields passed are changed; usedAt can be set to a date or null to restore unused status.",
+      inputSchema: hotelCertificatePatch.extend({ certificateId: z.string() }),
+    },
+    tool(async ({ certificateId, ...patch }) => certificates.updateCertificate(svc(), certificateId, patch)),
+  );
+
+  server.registerTool(
+    "mark_hotel_certificate_used",
+    {
+      description: "Mark an issued hotel free-night certificate used, optionally on a historical YYYY-MM-DD date (defaults to today).",
+      inputSchema: z.object({ certificateId: z.string(), usedAt: isoDate.optional() }),
+    },
+    tool(async ({ certificateId, usedAt }) => certificates.markCertificateUsed(svc(), certificateId, usedAt ?? now())),
+  );
+
+  server.registerTool(
+    "delete_hotel_certificate",
+    {
+      description: "Permanently delete an individually tracked hotel certificate.",
+      inputSchema: z.object({ certificateId: z.string() }),
+      annotations: { destructiveHint: true },
+    },
+    tool(async ({ certificateId }) => certificates.deleteCertificate(svc(), certificateId)),
   );
 
   server.registerTool(
