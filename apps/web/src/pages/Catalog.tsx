@@ -1,8 +1,9 @@
-import { ACCOUNT_KINDS, INSTITUTION_TYPES, NETWORKS, OWNER_TYPES, type AccountKind } from "@bonus/core";
+import { ACCOUNT_KINDS, INSTITUTION_TYPES, NETWORKS, OWNER_TYPES, type AccountKind, type OwnerType } from "@bonus/core";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { IconPlus } from "../components/icons";
 import { KindIcon } from "../components/KindIcon";
+import { OwnerTypeFilter } from "../components/OwnerTypeFilter";
 import { Badge, Button, Empty, ErrorText, Field, Input, IssuerChip, Select, Sheet, Spinner } from "../components/ui";
 import { t, td } from "../i18n";
 import { api } from "../lib/api";
@@ -53,6 +54,7 @@ function ProductsTab() {
   const [q, setQ] = useState("");
   const [inst, setInst] = useState("");
   const [kind, setKind] = useState<AccountKind | "">("");
+  const [ownerType, setOwnerType] = useState<OwnerType | "">("");
   const [editing, setEditing] = useState<Product | "new" | null>(null);
 
   const groups = useMemo(() => {
@@ -61,12 +63,13 @@ function ProductsTab() {
       (p) =>
         (!inst || p.institutionId === inst) &&
         (!kind || p.kind === kind) &&
+        (!ownerType || p.ownerType === ownerType) &&
         (!needle || [p.name, p.id, p.institutionName, p.family ?? "", p.currency ?? ""].some((s) => s.toLowerCase().includes(needle))),
     );
     const m = new Map<string, Product[]>();
     for (const p of rows) m.set(p.institutionId, [...(m.get(p.institutionId) ?? []), p]);
     return [...m.entries()];
-  }, [data, q, inst, kind]);
+  }, [data, q, inst, kind, ownerType]);
 
   if (isLoading) return <Spinner />;
   if (error) return <ErrorText error={error} />;
@@ -82,7 +85,15 @@ function ProductsTab() {
             </option>
           ))}
         </Select>
-        <Select value={kind} onChange={(e) => setKind(e.target.value as AccountKind | "")} className="w-auto min-w-0 flex-1 basis-[calc(50%-0.25rem)] sm:flex-none sm:basis-auto">
+        <Select
+          value={kind}
+          onChange={(e) => {
+            const next = e.target.value as AccountKind | "";
+            setKind(next);
+            if (next !== "credit_card" && next !== "bank_account") setOwnerType("");
+          }}
+          className="w-auto min-w-0 flex-1 basis-[calc(50%-0.25rem)] sm:flex-none sm:basis-auto"
+        >
           <option value="">{t("cat2.allKinds")}</option>
           {ACCOUNT_KINDS.map((k) => (
             <option key={k} value={k}>
@@ -90,6 +101,7 @@ function ProductsTab() {
             </option>
           ))}
         </Select>
+        {(kind === "credit_card" || kind === "bank_account") && <OwnerTypeFilter value={ownerType} onChange={setOwnerType} />}
         <label className="flex min-h-10 items-center gap-2 text-sm">
           <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} className="h-4 w-4" />
           {t("cat2.showArchived")}

@@ -1,9 +1,10 @@
-import { ACCOUNT_STATUSES, ACCOUNT_KINDS, type AccountKind } from "@bonus/core";
+import { ACCOUNT_STATUSES, ACCOUNT_KINDS, type AccountKind, type OwnerType } from "@bonus/core";
 import { useEffect, useMemo, useState } from "react";
 import { AccountDetailView } from "../components/AccountDetail";
 import { AccountForm } from "../components/AccountForm";
 import { daysLabel } from "../components/BonusRow";
 import { KindFilter } from "../components/KindFilter";
+import { OwnerTypeFilter } from "../components/OwnerTypeFilter";
 import { IconGift, IconPlus } from "../components/icons";
 import { Badge, Button, Empty, ErrorText, Input, IssuerChip, ProgressBar, Select, Sheet, Spinner, statusTone } from "../components/ui";
 import { t, td, type MessageKey } from "../i18n";
@@ -81,6 +82,7 @@ export function AccountsPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [issuer, setIssuer] = useState("");
+  const [ownerType, setOwnerType] = useState<OwnerType | "">("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "opened", dir: -1 });
   const [creating, setCreating] = useState(false);
   const wide = useIsWide();
@@ -101,6 +103,7 @@ export function AccountsPage() {
     const needle = q.trim().toLowerCase();
     return data
       .filter((a) => !kind || a.kind === kind)
+      .filter((a) => !ownerType || a.ownerType === ownerType)
       .filter((a) => !status || a.status === status)
       .filter((a) => !issuer || a.institutionId === issuer)
       .filter((a) => !needle || [a.label, a.productName, a.institutionName, a.last4, a.notes].some((s) => s?.toLowerCase().includes(needle)))
@@ -109,7 +112,7 @@ export function AccountsPage() {
         const b = sortValue(y, sort.key);
         return (a < b ? -1 : a > b ? 1 : 0) * sort.dir;
       });
-  }, [data, q, status, issuer, sort, kind]);
+  }, [data, q, status, issuer, ownerType, sort, kind]);
 
   const select = (id: string | null) => navigate(id ? `/accounts/${id}` : "/accounts", { replace: wide });
 
@@ -120,9 +123,11 @@ export function AccountsPage() {
       onChange={(k) => {
         setKind(k);
         setIssuer("");
+        if (k !== "credit_card" && k !== "bank_account") setOwnerType("");
       }}
       counts={counts}
     />
+    {(kind === "credit_card" || kind === "bank_account") && <OwnerTypeFilter value={ownerType} onChange={setOwnerType} />}
     <div className="flex flex-wrap items-center gap-2">
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("common.search")} className="min-w-0 basis-full sm:basis-auto sm:flex-1 sm:max-w-xs" type="search" />
       <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto min-w-0 flex-1 sm:flex-none">
