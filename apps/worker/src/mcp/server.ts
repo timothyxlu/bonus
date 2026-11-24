@@ -3,7 +3,8 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getDb } from "../db/client";
 import type { Env, McpProps } from "../env";
-import { accountInput, benefitUseInput, eventInput, isoDate } from "../schemas";
+import { accountInput, benefitUseInput, eventInput, isoDate, offerInput, offerPatch } from "../schemas";
+import * as offers from "../services/offers";
 import * as accounts from "../services/accounts";
 import * as bon from "../services/bonuses";
 import { listProducts } from "../services/catalog";
@@ -122,6 +123,34 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
       annotations: { readOnlyHint: true },
     },
     tool(async ({ status, kind }) => bon.listBonuses(svc(), { statuses: status, kind })),
+  );
+
+  server.registerTool(
+    "list_opportunities",
+    {
+      description: "Ranked opportunities (offers the user could open next: credit card sign-up offers, bank account bonuses, gift card promos) with estimated USD value (points valued per programme), net of first-year fee and costs, return on required spend/deposit, and eligibility against the user's history (eligible | uncertain | blocked with eligibleFrom).",
+      inputSchema: z.object({ kind: z.enum(["credit_card", "bank_account", "gift_card"]).optional() }),
+      annotations: { readOnlyHint: true },
+    },
+    tool(async ({ kind }) => offers.listOpportunities(svc(), { kind })),
+  );
+
+  server.registerTool(
+    "add_offer",
+    {
+      description: "Record an offer for the opportunities page, e.g. after researching current public offers. Use productId (from list_products) for credit cards; otherwise institutionId (create it first in the app if needed). rewardUnit points/miles/USD; optional centsPerPoint or estValueUsd override the valuation; cooldownMonths encodes 'no bonus if you received one from this bank in the last N months'. Include sourceUrl.",
+      inputSchema: offerInput,
+    },
+    tool(async (a) => offers.createOffer(svc(), a)),
+  );
+
+  server.registerTool(
+    "update_offer",
+    {
+      description: "Update an offer (e.g. new amount or expiry) or archive it with status 'archived' when it ends.",
+      inputSchema: offerPatch.extend({ offerId: z.string() }),
+    },
+    tool(async ({ offerId, ...patch }) => offers.updateOffer(svc(), offerId, patch)),
   );
 
   server.registerTool(

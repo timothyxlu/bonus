@@ -1,10 +1,11 @@
-import { IconCheck, IconChevron, IconCog } from "../components/icons";
+import { IconCheck, IconChevron, IconCog, IconGift } from "../components/icons";
 import { t } from "../i18n";
 import { Link } from "../lib/router";
 
 /** Phone-only overflow page for destinations that don't fit the tab bar. */
 export function MorePage() {
   const items = [
+    { to: "/benefits", label: t("nav.benefits"), icon: <IconGift /> },
     { to: "/eligibility", label: t("nav.eligibility"), icon: <IconCheck /> },
     { to: "/settings", label: t("nav.settings"), icon: <IconCog /> },
   ];

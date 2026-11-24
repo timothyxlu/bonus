@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "_comment": "FICTIONAL demo data for local development and screenshots. Not anyone's real history.",
+  "_comment": "FICTIONAL demo data for local development and screenshots. Not anyone's real history. Offer amounts are illustrative examples, not current offers.",
   "accounts": [
     {
       "product": "chase-sapphire-preferred",
@@ -256,6 +256,116 @@
         "faceValue": 250,
         "purchasePrice": 225
       }
+    }
+  ],
+  "offers": [
+    {
+      "kind": "credit_card",
+      "product": "amex-blue-business-plus",
+      "title": "示例：Blue Business Plus 15k",
+      "rewardAmount": 15000,
+      "rewardUnit": "points",
+      "amountRequired": 3000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "boa-premium-rewards",
+      "title": "示例：BoA Premium Rewards 60k",
+      "rewardAmount": 60000,
+      "rewardUnit": "points",
+      "centsPerPoint": 1.0,
+      "amountRequired": 4000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "chase-ink-cash",
+      "title": "示例：Ink Cash 75k",
+      "rewardAmount": 75000,
+      "rewardUnit": "points",
+      "amountRequired": 6000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "citi-strata-premier",
+      "title": "示例：Strata Premier 75k",
+      "rewardAmount": 75000,
+      "rewardUnit": "points",
+      "amountRequired": 4000,
+      "windowMonths": 3
+    },
+    {
+      "kind": "credit_card",
+      "product": "capital-one-venture",
+      "title": "示例：Venture 75k",
+      "rewardAmount": 75000,
+      "rewardUnit": "miles",
+      "amountRequired": 4000,
+      "windowMonths": 3,
+      "feeWaivedFirstYear": false
+    },
+    {
+      "kind": "credit_card",
+      "product": "amex-delta-gold",
+      "title": "示例：Delta Gold 80k",
+      "rewardAmount": 80000,
+      "rewardUnit": "miles",
+      "amountRequired": 3000,
+      "windowMonths": 6,
+      "feeWaivedFirstYear": true
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Citi",
+      "title": "示例：Citi 支票账户 $325",
+      "rewardAmount": 325,
+      "rewardUnit": "USD",
+      "requirementType": "direct_deposit",
+      "amountRequired": 3000,
+      "windowMonths": 3,
+      "cooldownMonths": 12
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Chase",
+      "title": "示例：Chase 支票账户 $400",
+      "rewardAmount": 400,
+      "rewardUnit": "USD",
+      "requirementType": "direct_deposit",
+      "amountRequired": 1000,
+      "windowMonths": 3,
+      "cooldownMonths": 24
+    },
+    {
+      "kind": "bank_account",
+      "issuer": "Example Credit Union",
+      "title": "示例：信用社储蓄 $300",
+      "rewardAmount": 300,
+      "rewardUnit": "USD",
+      "requirementType": "balance",
+      "amountRequired": 25000,
+      "windowMonths": 3,
+      "cooldownMonths": 12
+    },
+    {
+      "kind": "gift_card",
+      "issuer": "Example Grocer",
+      "title": "示例：超市礼品卡 8 折",
+      "rewardAmount": 40,
+      "rewardUnit": "USD",
+      "amountRequired": 200,
+      "expiresAt": "2026-12-31"
+    },
+    {
+      "kind": "gift_card",
+      "issuer": "Example Airline",
+      "title": "示例：航空礼品卡 9 折",
+      "rewardAmount": 25,
+      "rewardUnit": "USD",
+      "amountRequired": 250,
+      "expiresAt": "2026-11-01"
     }
   ]
 }

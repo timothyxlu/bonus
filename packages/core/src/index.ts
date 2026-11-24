@@ -7,3 +7,4 @@ export * from "./rules/window";
 export * from "./rules/history";
 export * from "./rules/five24";
 export * from "./rules/engine";
+export * from "./offers";

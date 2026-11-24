@@ -13,7 +13,10 @@ import {
   bonusInput,
   bonusPatch,
   eventInput,
+  claimOfferInput,
   institutionInput,
+  offerInput,
+  offerPatch,
   isoDate,
   productInput,
   productPatch,
@@ -25,6 +28,7 @@ import { BadRequestError, NotFoundError, type ServiceContext } from "../services
 import { getDashboard } from "../services/dashboard";
 import { checkAllProducts, checkProductEligibility, getFive24 } from "../services/eligibility";
 import { csvToImportPayload, importHistory } from "../services/import";
+import * as offersSvc from "../services/offers";
 
 type Vars = { identity: Identity; svc: ServiceContext };
 export type ApiEnv = { Bindings: Env; Variables: Vars };
@@ -141,6 +145,15 @@ export function createApi() {
       await checkProductEligibility(c.var.svc, c.req.param("productId"), ruleOpts(c)),
     ),
   );
+
+  // Opportunities (机会)
+  api.get("/opportunities", async (c) =>
+    c.json(await offersSvc.listOpportunities(c.var.svc, { kind: c.req.query("kind"), includeArchived: c.req.query("archived") === "1", asOf: asOfParam(c) })),
+  );
+  api.post("/offers", async (c) => c.json(await offersSvc.createOffer(c.var.svc, await body(c, offerInput)), 201));
+  api.patch("/offers/:id", async (c) => c.json(await offersSvc.updateOffer(c.var.svc, c.req.param("id"), await body(c, offerPatch))));
+  api.delete("/offers/:id", async (c) => c.json(await offersSvc.deleteOffer(c.var.svc, c.req.param("id"))));
+  api.post("/offers/:id/claim", async (c) => c.json(await offersSvc.claimOffer(c.var.svc, c.req.param("id"), await body(c, claimOfferInput)), 201));
 
   api.get("/dashboard", async (c) => c.json(await getDashboard(c.var.svc)));
 

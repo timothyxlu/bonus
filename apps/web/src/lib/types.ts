@@ -167,3 +167,33 @@ export interface EligibilityOverviewRow {
   eligibleFrom?: string;
   blockedBy: string[];
 }
+
+export interface Opportunity {
+  id: string;
+  kind: AccountKind;
+  productId: string | null;
+  productName: string | null;
+  institutionId: string;
+  institutionName: string;
+  currency: string | null;
+  title: string;
+  rewardAmount: number;
+  rewardUnit: RewardUnit;
+  centsPerPoint: number | null;
+  estValueUsd: number | null;
+  requirementType: BonusRequirementType;
+  amountRequired: number | null;
+  windowMonths: number | null;
+  annualFee: number | null;
+  feeWaivedFirstYear: boolean;
+  otherCost: number | null;
+  cooldownMonths: number | null;
+  expiresAt: string | null;
+  sourceUrl: string | null;
+  notes: string | null;
+  status: "active" | "archived";
+  expired: boolean;
+  updatedAt: string;
+  value: { grossUsd: number; costUsd: number; netUsd: number; centsPerPoint: number; returnOnRequired: number | null };
+  eligibility: { status: EligibilityResult["status"]; reasons: EligibilityResult["reasons"]; eligibleFrom?: string };
+}

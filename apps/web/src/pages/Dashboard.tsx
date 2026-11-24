@@ -9,7 +9,7 @@ import { t, td } from "../i18n";
 import { api } from "../lib/api";
 import { cx, fmtUsd, todayIso } from "../lib/format";
 import { KIND_META } from "../lib/kinds";
-import { useDashboard, useMutate } from "../lib/queries";
+import { useDashboard, useMutate, useOpportunities } from "../lib/queries";
 import { Link } from "../lib/router";
 import type { Benefit, Dashboard, KindStats } from "../lib/types";
 
@@ -27,6 +27,8 @@ export function DashboardPage() {
       </header>
 
       <Hunt data={data} />
+
+      <TopOpportunities />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6 xl:grid-cols-4">
         {ACCOUNT_KINDS.map((k) => (
@@ -63,6 +65,35 @@ export function DashboardPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** The three best offers you could open right now. */
+function TopOpportunities() {
+  const { data = [] } = useOpportunities(false);
+  const top = data.filter((o) => o.eligibility.status !== "blocked" && o.value.netUsd > 0).slice(0, 3);
+  if (top.length === 0) return null;
+  return (
+    <section className="rounded-[var(--radius-panel)] border border-line bg-surface p-4 sm:p-5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">{t("opp.top")}</h2>
+        <ViewLink to="/opportunities">{t("opp.viewAll")}</ViewLink>
+      </div>
+      <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {top.map((o) => (
+          <li key={o.id}>
+            <Link to="/opportunities" className="flex h-full items-center gap-3 rounded-[var(--radius-row)] bg-sunken p-3 hover:bg-brand-soft">
+              <IssuerChip issuer={o.institutionId} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{o.title}</p>
+                <p className="text-xs text-muted">{td(`kind.${o.kind}`)}</p>
+              </div>
+              <span className="tabular text-lg font-semibold text-money">{fmtUsd(Math.round(o.value.netUsd))}</span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

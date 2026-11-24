@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ProductSelect } from "../components/AccountForm";
+import { ReasonList } from "../components/ReasonList";
 import { Badge, Card, IssuerChip, ErrorText, Field, Input, Spinner, type Tone } from "../components/ui";
 import { ruleMessage, t, td } from "../i18n";
 import { cx, todayIso } from "../lib/format";
@@ -7,13 +8,7 @@ import { useEligibility, useEligibilityOverview, useProducts } from "../lib/quer
 import { useRouter } from "../lib/router";
 
 const statusTone: Record<string, Tone> = { eligible: "green", blocked: "red", uncertain: "amber" };
-/** Outcome glyphs: shape + colour, never colour alone. */
-const outcomeMark: Record<string, { glyph: string; cls: string; label: string }> = {
-  pass: { glyph: "✓", cls: "bg-money-soft text-money", label: "通过" },
-  block: { glyph: "✕", cls: "bg-danger-soft text-danger", label: "阻止" },
-  uncertain: { glyph: "?", cls: "bg-warn-soft text-warn", label: "不确定" },
-  info: { glyph: "i", cls: "bg-brand-soft text-brand", label: "提示" },
-};
+
 
 export function EligibilityPage() {
   const { query, navigate } = useRouter();
@@ -70,23 +65,7 @@ export function EligibilityPage() {
                 </p>
               )}
               <h3 className="mt-4 mb-2 text-xs font-semibold text-muted">{t("elig.reasons")}</h3>
-              <ul className="space-y-2">
-                {result.data.reasons.map((r, i) => (
-                  <li key={i} className="flex gap-2.5 text-sm">
-                    <span
-                      className={cx("mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-xs font-bold", outcomeMark[r.outcome]?.cls)}
-                      role="img"
-                      aria-label={outcomeMark[r.outcome]?.label}
-                    >
-                      {outcomeMark[r.outcome]?.glyph}
-                    </span>
-                    <span>
-                      {ruleMessage(r)}
-                      {r.eligibleFrom && <span className="tabular ml-1 text-xs text-muted">({r.eligibleFrom})</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <ReasonList reasons={result.data.reasons} />
             </Card>
           ) : null)}
       </div>

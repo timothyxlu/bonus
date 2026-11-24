@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import type { AccountDetail, AccountSummary, Benefit, Dashboard, EligibilityOverviewRow, EligibilityResult, Institution, Product, UpcomingBonus } from "./types";
+import type { Opportunity, AccountDetail, AccountSummary, Benefit, Dashboard, EligibilityOverviewRow, EligibilityResult, Institution, Product, UpcomingBonus } from "./types";
 
 export const useDashboard = () => useQuery({ queryKey: ["dashboard"], queryFn: () => api.get<Dashboard>("/dashboard") });
 export const useAccounts = () => useQuery({ queryKey: ["accounts"], queryFn: () => api.get<AccountSummary[]>("/accounts") });
@@ -11,6 +11,8 @@ export const useInstitutions = () =>
   useQuery({ queryKey: ["institutions"], queryFn: () => api.get<Institution[]>("/institutions"), staleTime: 5 * 60_000 });
 export const useBenefits = () => useQuery({ queryKey: ["benefits"], queryFn: () => api.get<Benefit[]>("/benefits") });
 export const useBonuses = () => useQuery({ queryKey: ["bonuses"], queryFn: () => api.get<UpcomingBonus[]>("/bonuses") });
+export const useOpportunities = (archived: boolean) =>
+  useQuery({ queryKey: ["opportunities", archived], queryFn: () => api.get<Opportunity[]>(`/opportunities${archived ? "?archived=1" : ""}`) });
 export const useUpcoming = () => useQuery({ queryKey: ["upcoming"], queryFn: () => api.get<UpcomingBonus[]>("/bonuses/upcoming") });
 export const useMe = () => useQuery({ queryKey: ["me"], queryFn: () => api.get<{ email: string; source: string }>("/me") });
 
@@ -30,7 +32,7 @@ export function useMutate<TVars, TRes = unknown>(fn: (v: TVars) => Promise<TRes>
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      for (const k of ["bonuses", "accounts", "account", "dashboard", "benefits", "upcoming", "eligibility", "eligibility-all", "products", "institutions"])
+      for (const k of ["opportunities", "bonuses", "accounts", "account", "dashboard", "benefits", "upcoming", "eligibility", "eligibility-all", "products", "institutions"])
         qc.invalidateQueries({ queryKey: [k] });
     },
   });

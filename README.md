@@ -48,7 +48,11 @@ Notes:
   `McpServer`, following Cloudflare's current `remote-mcp-cf-access` demo. `McpAgent` is deprecated
   in `agents@0.34` and would need a Durable Object for nothing. Tools: `list_accounts`, `get_account`,
   `add_account`, `record_event`, `list_benefits`, `mark_benefit_used`, `upcoming_deadlines`,
-  `check_eligibility`, `five_24_status` (+ `list_products` to discover product ids).
+  `check_eligibility`, `five_24_status`, plus `list_products`, `list_bonuses`, and the opportunity tools
+  `list_opportunities` / `add_offer` / `update_offer` (Claude can research current offers and record them).
+- **机会 (opportunities)**: offers you might open next, valued in USD (points at per-programme
+  cents, overridable), net of first-year fee and costs, ranked, and checked against your history:
+  the issuer rules engine for cards, a same-institution cooldown for bank and gift-card offers.
 - **Auth**: `/api` verifies the Access JWT in the Worker (signature/issuer/audience/expiry) and scopes
   every query by the user's email (`owner_id`). MCP tokens carry the same email, so web and MCP see the
   same data: `/authorize` sits behind Access, verifies the Access JWT and only asks for consent

@@ -126,6 +126,50 @@ export const importAccount = accountBase.extend({
 });
 export const importPayload = z.object({
   version: z.literal(1).default(1),
-  accounts: z.array(importAccount).max(2000),
+  accounts: z.array(importAccount).max(2000).default([]),
+  /** Offers for the 机会 page; `product` / `issuer` resolve like accounts. */
+  offers: z.array(z.record(z.string(), z.unknown())).max(500).default([]),
 });
 export type ImportPayload = z.infer<typeof importPayload>;
+
+export const offerInput = z
+  .object({
+    kind: z.enum(ACCOUNT_KINDS),
+    productId: z.string().min(1).nullish(),
+    institutionId: z.string().min(1).nullish(),
+    title: z.string().trim().min(1).max(160),
+    rewardAmount: z.number().min(0),
+    rewardUnit: z.enum(REWARD_UNITS).default("points"),
+    centsPerPoint: z.number().min(0).max(100).nullish(),
+    estValueUsd: z.number().min(0).nullish(),
+    requirementType: z.enum(BONUS_REQUIREMENT_TYPES).default("spend"),
+    amountRequired: z.number().min(0).nullish(),
+    windowMonths: z.number().int().min(0).max(60).nullish(),
+    annualFee: z.number().min(0).nullish(),
+    feeWaivedFirstYear: z.boolean().default(false),
+    otherCost: z.number().min(0).nullish(),
+    cooldownMonths: z.number().int().min(0).max(120).nullish(),
+    expiresAt: optDate,
+    sourceUrl: z.string().trim().url().max(500).nullish(),
+    notes: optText(2000),
+  })
+  .refine((o) => o.productId || o.institutionId, { message: "productId or institutionId is required" });
+export const offerPatch = z.object({
+  title: z.string().trim().min(1).max(160).optional(),
+  rewardAmount: z.number().min(0).optional(),
+  rewardUnit: z.enum(REWARD_UNITS).optional(),
+  centsPerPoint: z.number().min(0).max(100).nullish(),
+  estValueUsd: z.number().min(0).nullish(),
+  requirementType: z.enum(BONUS_REQUIREMENT_TYPES).optional(),
+  amountRequired: z.number().min(0).nullish(),
+  windowMonths: z.number().int().min(0).max(60).nullish(),
+  annualFee: z.number().min(0).nullish(),
+  feeWaivedFirstYear: z.boolean().optional(),
+  otherCost: z.number().min(0).nullish(),
+  cooldownMonths: z.number().int().min(0).max(120).nullish(),
+  expiresAt: optDate,
+  sourceUrl: z.string().trim().url().max(500).nullish(),
+  notes: optText(2000),
+  status: z.enum(["active", "archived"]).optional(),
+});
+export const claimOfferInput = z.object({ openedAt: isoDate.optional(), last4: last4.nullish(), nickname: optText(120) });

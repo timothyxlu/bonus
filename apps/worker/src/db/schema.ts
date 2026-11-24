@@ -186,3 +186,42 @@ export type AccountEvent = typeof events.$inferSelect;
 export type Bonus = typeof bonuses.$inferSelect;
 export type Benefit = typeof benefits.$inferSelect;
 export type BenefitUse = typeof benefitUses.$inferSelect;
+
+/**
+ * Offers the owner might go after next (credit card sign-up offers, bank account
+ * bonuses, gift card promos). Maintained in the app or by Claude via MCP; drives the
+ * 机会 (opportunities) page.
+ */
+export const offers = sqliteTable(
+  "offers",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    kind: text("kind").$type<AccountKind>().notNull(),
+    productId: text("product_id").references(() => products.id),
+    institutionId: text("institution_id")
+      .notNull()
+      .references(() => institutions.id),
+    title: text("title").notNull(),
+    rewardAmount: real("reward_amount").notNull(),
+    rewardUnit: text("reward_unit").$type<RewardUnit>().notNull().default("points"),
+    centsPerPoint: real("cents_per_point"),
+    estValueUsd: real("est_value_usd"),
+    requirementType: text("requirement_type").$type<BonusRequirementType>().notNull().default("spend"),
+    amountRequired: real("amount_required"),
+    windowMonths: integer("window_months"),
+    annualFee: real("annual_fee"),
+    feeWaivedFirstYear: integer("fee_waived_first_year", { mode: "boolean" }).notNull().default(false),
+    otherCost: real("other_cost"),
+    cooldownMonths: integer("cooldown_months"),
+    expiresAt: text("expires_at"),
+    sourceUrl: text("source_url"),
+    notes: text("notes"),
+    status: text("status").$type<"active" | "archived">().notNull().default("active"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("offers_owner_idx").on(t.ownerId, t.status)],
+);
+
+export type Offer = typeof offers.$inferSelect;

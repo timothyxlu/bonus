@@ -2,11 +2,12 @@ import type { ReactNode } from "react";
 import { t, type MessageKey } from "../i18n";
 import { cx } from "../lib/format";
 import { Link, useRouter } from "../lib/router";
-import { IconCards, IconCheck, IconCog, IconGift, IconHome, IconMore, IconTarget } from "./icons";
+import { IconCards, IconCheck, IconCog, IconGift, IconHome, IconCompass, IconMore, IconTarget } from "./icons";
 
 type NavItem = { to: string; key: MessageKey; icon: (p: { small?: boolean }) => ReactNode };
 const NAV: NavItem[] = [
   { to: "/", key: "nav.dashboard", icon: IconHome },
+  { to: "/opportunities", key: "nav.opportunities", icon: IconCompass },
   { to: "/bonuses", key: "nav.bonuses", icon: IconTarget },
   { to: "/accounts", key: "nav.accounts", icon: IconCards },
   { to: "/benefits", key: "nav.benefits", icon: IconGift },
@@ -15,7 +16,7 @@ const NAV: NavItem[] = [
 ];
 /** Phone tab bar: at most five; the rest live under 更多. */
 const TABS: NavItem[] = [...NAV.slice(0, 4), { to: "/more", key: "nav.more", icon: IconMore }];
-const MORE_PATHS = ["/more", "/eligibility", "/settings"];
+const MORE_PATHS = ["/more", "/benefits", "/eligibility", "/settings"];
 
 const isActive = (path: string, to: string) => (to === "/" ? path === "/" : path === to || path.startsWith(`${to}/`));
 

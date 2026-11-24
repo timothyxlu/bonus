@@ -64,3 +64,35 @@ amex-gold,,,,,0002,closed,,2019-01-10,2020-01-15,,,
 ```
 
 `bonus_earned_at` creates a posted bonus with that date.
+
+## Offers (机会)
+
+The same JSON can carry an `offers` array for the 机会 page. These are offers you might open next,
+not accounts you hold. Each one is valued and checked against your history. Claude can also
+maintain them through the MCP tools `add_offer`, `update_offer` and `list_opportunities`.
+
+```json
+{
+  "version": 1,
+  "offers": [
+    { "kind": "credit_card", "product": "amex-gold", "title": "Gold 100k", "rewardAmount": 100000,
+      "rewardUnit": "points", "amountRequired": 6000, "windowMonths": 6, "sourceUrl": "https://…" },
+    { "kind": "bank_account", "issuer": "Chase", "title": "Chase checking $400", "rewardAmount": 400,
+      "rewardUnit": "USD", "requirementType": "direct_deposit", "amountRequired": 1000,
+      "windowMonths": 3, "cooldownMonths": 24 },
+    { "kind": "gift_card", "issuer": "Example Grocer", "title": "Grocer 20% off", "rewardAmount": 40,
+      "rewardUnit": "USD", "amountRequired": 200, "expiresAt": "2026-12-31" }
+  ]
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `product` / `productId` | Credit cards: catalog product, so the issuer rules engine applies and the product's annual fee and points programme are used. |
+| `issuer` / `institutionId` | Bank and gift-card offers (created if missing). |
+| `rewardAmount`, `rewardUnit` | `points`, `miles` or `USD`. |
+| `centsPerPoint`, `estValueUsd` | Optional overrides of the default per-programme valuation. |
+| `annualFee`, `feeWaivedFirstYear`, `otherCost` | Costs subtracted to get net value (fee defaults to the product's). |
+| `requirementType`, `amountRequired`, `windowMonths` | What it takes. "我已开户" turns these into a bonus target with a deadline. |
+| `cooldownMonths` | Bank/gift offers: blocked if you got a bonus from the same institution and kind within this many months. |
+| `expiresAt`, `sourceUrl`, `notes` | Optional. |

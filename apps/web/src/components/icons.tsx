@@ -15,3 +15,5 @@ export const IconCard = ({ small }: { small?: boolean }) => <P small={small} d="
 export const IconTarget = ({ small }: { small?: boolean }) => <P small={small} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01" />;
 export const IconMore = ({ small }: { small?: boolean }) => <P small={small} d="M5 12h.01M12 12h.01M19 12h.01" />;
 export const IconChevron = ({ small }: { small?: boolean }) => <P small={small} d="M9 6l6 6-6 6" />;
+export const IconCompass = ({ small }: { small?: boolean }) => <P small={small} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z" />;
+export const IconExternal = ({ small }: { small?: boolean }) => <P small={small} d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />;

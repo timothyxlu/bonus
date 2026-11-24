@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
-import { accounts, bonuses, benefits, events, institutions } from "../db/schema";
-import { importPayload, type ImportPayload } from "../schemas";
+import { accounts, bonuses, benefits, events, institutions, offers } from "../db/schema";
+import { importPayload, offerInput, type ImportPayload } from "../schemas";
+import { createOffer } from "./offers";
 import { createAccount } from "./accounts";
 import { listInstitutions, listProducts, slug } from "./catalog";
 import { BadRequestError, newId, type ServiceContext } from "./context";
@@ -8,6 +9,7 @@ import { BadRequestError, newId, type ServiceContext } from "./context";
 export interface ImportResult {
   dryRun: boolean;
   created: number;
+  offersCreated: number;
   skipped: { index: number; reason: string }[];
   errors: { index: number; error: string }[];
   createdIds: string[];
@@ -24,7 +26,7 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
   const products = await listProducts(ctx);
   const insts = await listInstitutions(ctx);
   const existing = await ctx.db.select().from(accounts).where(eq(accounts.ownerId, ctx.ownerId));
-  const result: ImportResult = { dryRun: !!opts.dryRun, created: 0, skipped: [], errors: [], createdIds: [] };
+  const result: ImportResult = { dryRun: !!opts.dryRun, created: 0, offersCreated: 0, skipped: [], errors: [], createdIds: [] };
 
   for (const [index, item] of payload.accounts.entries()) {
     try {
@@ -80,6 +82,41 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
       existing.push(created);
       result.created++;
       result.createdIds.push(created.id);
+    } catch (err) {
+      result.errors.push({ index, error: (err as Error).message });
+    }
+  }
+  // Offers for the 机会 page.
+  const existingOffers = await ctx.db.select().from(offers).where(eq(offers.ownerId, ctx.ownerId));
+  for (const [i, raw] of payload.offers.entries()) {
+    const index = payload.accounts.length + i;
+    try {
+      const rec = { ...raw } as Record<string, unknown>;
+      if (!rec.productId && typeof rec.product === "string") {
+        const key = rec.product.toLowerCase().trim();
+        rec.productId = (products.find((p) => p.id === key) ?? products.find((p) => p.name.toLowerCase() === key))?.id ?? null;
+      }
+      if (!rec.productId && !rec.institutionId && typeof rec.issuer === "string") {
+        const issuer = rec.issuer.trim();
+        let inst = insts.find((x) => x.id === issuer.toLowerCase() || x.name.toLowerCase() === issuer.toLowerCase());
+        if (!inst && !opts.dryRun) {
+          const id = slug(issuer).replace(/-/g, "_");
+          await ctx.db.insert(institutions).values({ id, ownerId: ctx.ownerId, name: issuer, type: rec.kind === "gift_card" ? "merchant" : rec.kind === "bank_account" ? "bank" : "issuer" }).onConflictDoNothing();
+          inst = { id, ownerId: ctx.ownerId, name: issuer, type: "issuer", createdAt: "" };
+          insts.push(inst);
+        }
+        rec.institutionId = inst?.id ?? "(new)";
+      }
+      delete rec.product;
+      delete rec.issuer;
+      const parsedOffer = offerInput.safeParse(rec);
+      if (!parsedOffer.success) throw new Error(parsedOffer.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "));
+      if (existingOffers.some((o) => o.status === "active" && o.title === parsedOffer.data.title)) {
+        result.skipped.push({ index, reason: `Offer already exists: ${parsedOffer.data.title}` });
+        continue;
+      }
+      if (!opts.dryRun) existingOffers.push(await createOffer(ctx, parsedOffer.data));
+      result.offersCreated++;
     } catch (err) {
       result.errors.push({ index, error: (err as Error).message });
     }
