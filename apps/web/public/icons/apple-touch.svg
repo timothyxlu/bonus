@@ -9,7 +9,7 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" fill="url(#bg)"/>
-  <g transform="translate(256 256) scale(0.86) translate(-256 -256) rotate(45 256 256) translate(0 34)">
+  <g transform="translate(256 256) scale(0.86) translate(-256 -256) translate(35.5 -34) rotate(45 256 256) translate(0 34)">
     <path d="M104 296 L256 366 L408 296" fill="none" stroke="#8fcad6" stroke-width="7" stroke-linejoin="round"/>
     <!-- limbs: filled, tapering to recurved tips -->
     <path d="M104 296 C 92 268, 112 246, 130 232 C 176 192, 214 176, 256 176 C 298 176, 336 192, 382 232 C 400 246, 420 268, 408 296

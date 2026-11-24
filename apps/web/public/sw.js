@@ -12,7 +12,7 @@
  *  - Navigations go to the network (so an expired Access session redirects to the GitHub
  *    login as usual); only when the network is unreachable is the offline page shown.
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const STATIC_CACHE = `bonus-static-${VERSION}`;
 const ASSET_CACHE = "bonus-assets"; // hashed file names: safe to keep across versions
 // Workers Static Assets serves offline.html at /offline (html_handling drops the extension).
