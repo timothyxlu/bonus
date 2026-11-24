@@ -13,6 +13,7 @@ import type {
   OwnerType,
   ProductRules,
   RewardUnit,
+  UsStateCode,
 } from "@bonus/core";
 
 const createdAt = () => text("created_at").notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`);
@@ -316,6 +317,24 @@ export const catalogOverrides = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.ownerId, t.entity, t.entityId] })],
 );
+
+/**
+ * Account-level preferences, one row per owner (lower-cased Access email). Stored server-side
+ * so they follow the user across devices and sign-outs.
+ */
+export const userPreferences = sqliteTable(
+  "user_preferences",
+  {
+    ownerId: text("owner_id").primaryKey(),
+    /** USPS abbreviation of the user's U.S. state (50 states + DC); NULL = not set. */
+    homeState: text("home_state").$type<UsStateCode>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [check("user_preferences_home_state_check", sql`${t.homeState} IS NULL OR (length(${t.homeState}) = 2 AND ${t.homeState} = upper(${t.homeState}))`)],
+);
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
 
 /** Small key/value table for app-level state (e.g. the synced catalog version). */
 export const appMeta = sqliteTable("app_meta", {

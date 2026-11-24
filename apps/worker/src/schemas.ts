@@ -11,6 +11,7 @@ import {
   NETWORKS,
   OWNER_TYPES,
   REWARD_UNITS,
+  US_STATE_CODES,
   isIsoDate,
 } from "@bonus/core";
 import { z } from "zod";
@@ -225,6 +226,13 @@ export const hotelCertificatePatch = z
   .strict();
 
 export const hotelCertificateUseInput = z.object({ usedAt: isoDate.optional() }).strict();
+
+/** Account-level preferences. `homeState` is a canonical USPS code (50 states + DC) or null to clear. */
+export const preferencesPatch = z
+  .object({
+    homeState: z.enum(US_STATE_CODES, { message: "homeState must be a two-letter U.S. state code (50 states or DC) or null" }).nullable(),
+  })
+  .strict();
 
 export const LOYALTY_CATEGORIES = ["flight", "hotel", "credit_card"] as const;
 const loyaltyFields = {

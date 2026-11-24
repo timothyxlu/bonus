@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import type { Opportunity, AccountDetail, AccountSummary, Benefit, Dashboard, EligibilityOverviewRow, EligibilityResult, HotelCertificate, Institution, LoyaltyBalance, Product, UpcomingBonus } from "./types";
+import type { Opportunity, AccountDetail, AccountSummary, Benefit, Dashboard, EligibilityOverviewRow, EligibilityResult, HotelCertificate, Institution, LoyaltyBalance, Product, UpcomingBonus, UserPreferences } from "./types";
 
 export const useDashboard = () => useQuery({ queryKey: ["dashboard"], queryFn: () => api.get<Dashboard>("/dashboard") });
 export const useAccounts = () => useQuery({ queryKey: ["accounts"], queryFn: () => api.get<AccountSummary[]>("/accounts") });
@@ -21,6 +21,16 @@ export const useBonuses = () => useQuery({ queryKey: ["bonuses"], queryFn: () =>
 export const useOpportunities = (archived: boolean) =>
   useQuery({ queryKey: ["opportunities", archived], queryFn: () => api.get<Opportunity[]>(`/opportunities${archived ? "?archived=1" : ""}`) });
 export const useUpcoming = () => useQuery({ queryKey: ["upcoming"], queryFn: () => api.get<UpcomingBonus[]>("/bonuses/upcoming") });
+export const preferencesQueryKey = ["preferences"] as const;
+export const usePreferences = () => useQuery({ queryKey: preferencesQueryKey, queryFn: () => api.get<UserPreferences>("/preferences") });
+/** Saves account-level preferences and writes the server's response straight into the cache. */
+export function useUpdatePreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: Pick<UserPreferences, "homeState">) => api.patch<UserPreferences>("/preferences", patch),
+    onSuccess: (prefs) => qc.setQueryData(preferencesQueryKey, prefs),
+  });
+}
 export const useMe = () => useQuery({ queryKey: ["me"], queryFn: () => api.get<{ email: string; source: string }>("/me") });
 
 export function useEligibility(productId: string | null, qs: string) {

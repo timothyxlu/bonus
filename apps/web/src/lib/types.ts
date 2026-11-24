@@ -244,3 +244,9 @@ export interface Opportunity {
   value: { grossUsd: number; costUsd: number; netUsd: number; centsPerPoint: number; returnOnRequired: number | null };
   eligibility: { status: EligibilityResult["status"]; reasons: EligibilityResult["reasons"]; eligibleFrom?: string };
 }
+
+export interface UserPreferences {
+  /** USPS two-letter code (50 states + DC), or null when not set. */
+  homeState: string | null;
+  updatedAt: string | null;
+}
