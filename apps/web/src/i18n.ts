@@ -173,6 +173,9 @@ const zhCN = {
   "loyalty.total": "合计 {n}",
   "loyalty.confirmDelete": "删除这条积分余额？此操作不可撤销。",
   "loyalty.validation.balance": "余额必须是非负整数",
+  "loyalty.expand": "展开积分余额",
+  "loyalty.collapse": "收起积分余额",
+  "loyalty.actions": "{program} 操作",
 
   "detail.timeline": "时间线",
   "detail.bonuses": "奖励",
