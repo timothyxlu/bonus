@@ -18,6 +18,18 @@ import { z } from "zod";
 export const isoDate = z.string().refine(isIsoDate, { message: "Expected a date in YYYY-MM-DD format" });
 const optDate = isoDate.nullish();
 const optText = (max = 500) => z.string().trim().max(max).nullish();
+const sourceUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((value) => {
+    try {
+      return ["http:", "https:"].includes(new URL(value).protocol);
+    } catch {
+      return false;
+    }
+  }, "URL must use http or https")
+  .nullish();
 
 /** Trailing 4 or 5 digits (Amex shows 5). Rejects anything that looks like a full number. */
 export const last4 = z
@@ -147,7 +159,7 @@ const benefitFields = {
   amountByPeriod: z.record(z.string().regex(/^(1[0-2]|[1-9])$/, { message: "keys are period numbers 1-12" }), z.number().min(0)).nullish(),
   enrollmentRequired: z.boolean(),
   limitations: optText(1000),
-  sourceUrl: z.string().trim().url().max(500).nullish(),
+  sourceUrl,
   startsAt: optDate,
   endsAt: optDate,
   resetRule: optText(200),
@@ -249,7 +261,7 @@ export const offerInput = z
     otherCost: z.number().min(0).nullish(),
     cooldownMonths: z.number().int().min(0).max(120).nullish(),
     expiresAt: optDate,
-    sourceUrl: z.string().trim().url().max(500).nullish(),
+    sourceUrl,
     notes: optText(2000),
   })
   .refine((o) => o.productId || o.institutionId, { message: "productId or institutionId is required" });
@@ -267,7 +279,7 @@ export const offerPatch = z.object({
   otherCost: z.number().min(0).nullish(),
   cooldownMonths: z.number().int().min(0).max(120).nullish(),
   expiresAt: optDate,
-  sourceUrl: z.string().trim().url().max(500).nullish(),
+  sourceUrl,
   notes: optText(2000),
   status: z.enum(["active", "archived"]).optional(),
 });

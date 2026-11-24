@@ -40,3 +40,21 @@ describe("service worker", () => {
     for (const p of ["/", "/assets/index-abc.js", "/icons/icon-192.png", "/apiary"]) expect(skipped(p), p).toBe(false);
   });
 });
+
+describe("static security headers", () => {
+  const headers = readFileSync(pub("_headers"), "utf8");
+  it("protects the app against framing, MIME sniffing and insecure transport", () => {
+    expect(headers).toContain("Content-Security-Policy:");
+    expect(headers).toContain("frame-ancestors 'none'");
+    expect(headers).toContain("Strict-Transport-Security: max-age=31536000");
+    expect(headers).toContain("X-Content-Type-Options: nosniff");
+    expect(headers).toContain("X-Frame-Options: DENY");
+    expect(headers).toContain("Referrer-Policy: no-referrer");
+  });
+
+  it("keeps the offline fallback compatible with script-src self", () => {
+    const offline = readFileSync(pub("offline.html"), "utf8");
+    expect(offline).not.toMatch(/<script|\son\w+=/i);
+    expect(offline).toContain('<a href="/">重试</a>');
+  });
+});
