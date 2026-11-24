@@ -83,7 +83,7 @@ function TopOpportunities() {
       <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {top.map((o) => (
           <li key={o.id}>
-            <Link to="/opportunities" className="flex h-full items-center gap-3 rounded-[var(--radius-row)] bg-sunken p-3 hover:bg-brand-soft">
+            <Link to={`/opportunities?focus=${encodeURIComponent(o.id)}`} className="flex h-full items-center gap-3 rounded-[var(--radius-row)] bg-sunken p-3 hover:bg-brand-soft">
               <IssuerChip issuer={o.institutionId} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{o.title}</p>
