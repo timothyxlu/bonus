@@ -8,26 +8,37 @@ import type { Benefit } from "../lib/types";
 
 export function BenefitsPage() {
   const { data = [], isLoading, error } = useBenefits();
-  const certificates = useHotelCertificates();
+  const allCertificates = useHotelCertificates();
+  const unusedCertificates = useHotelCertificates("unused");
   const [unusedOnly, setUnusedOnly] = useState(true);
+  const [certificateUnusedOnly, setCertificateUnusedOnly] = useState(true);
   const [addingCertificate, setAddingCertificate] = useState(false);
   const [sourceBenefit, setSourceBenefit] = useState<Benefit | undefined>();
-  if (isLoading || certificates.isLoading) return <Spinner />;
-  if (error || certificates.error) return <ErrorText error={error ?? certificates.error} />;
+  if (isLoading || allCertificates.isLoading || unusedCertificates.isLoading) return <Spinner />;
+  if (error || allCertificates.error || unusedCertificates.error) return <ErrorText error={error ?? allCertificates.error ?? unusedCertificates.error} />;
+  const certificateRows = certificateUnusedOnly ? unusedCertificates.data ?? [] : allCertificates.data ?? [];
   const rows = data.filter((b) => !unusedOnly || b.unused);
   const groups = new Map<string, typeof rows>();
   for (const b of rows) groups.set(b.accountLabel ?? "", [...(groups.get(b.accountLabel ?? "") ?? []), b]);
   return (
     <div className="space-y-4">
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">{t("certificate.title")}</h1>
             <p className="text-sm text-muted">{t("certificate.subtitle")}</p>
           </div>
-          <Button onClick={() => { setSourceBenefit(undefined); setAddingCertificate(true); }}>+ {t("certificate.add")}</Button>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <CertificateUnusedFilter
+              checked={certificateUnusedOnly}
+              unusedCount={unusedCertificates.data?.length ?? 0}
+              totalCount={allCertificates.data?.length ?? 0}
+              onChange={setCertificateUnusedOnly}
+            />
+            <Button onClick={() => { setSourceBenefit(undefined); setAddingCertificate(true); }}>+ {t("certificate.add")}</Button>
+          </div>
         </div>
-        {(certificates.data?.length ?? 0) === 0 ? <Empty>{t("certificate.empty")}</Empty> : <HotelCertificateList rows={certificates.data ?? []} />}
+        {certificateRows.length === 0 ? <Empty>{t(certificateUnusedOnly ? "certificate.emptyUnused" : "certificate.empty")}</Empty> : <HotelCertificateList rows={certificateRows} />}
       </section>
       <hr className="border-line" />
       <div className="flex items-center justify-between">
@@ -56,5 +67,19 @@ export function BenefitsPage() {
         {addingCertificate && <HotelCertificateForm sourceBenefit={sourceBenefit} onDone={() => setAddingCertificate(false)} />}
       </Sheet>
     </div>
+  );
+}
+
+export function CertificateUnusedFilter({ checked, unusedCount, totalCount, onChange }: {
+  checked: boolean;
+  unusedCount: number;
+  totalCount: number;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4" />
+      {t("benefit.unusedOnly")} ({unusedCount}/{totalCount})
+    </label>
   );
 }
