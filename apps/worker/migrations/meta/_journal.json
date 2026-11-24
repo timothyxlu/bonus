@@ -43,6 +43,13 @@
       "when": 1795485566396,
       "tag": "0005_benefit_schedules",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1795490577017,
+      "tag": "0006_hotel_certificates",
+      "breakpoints": true
     }
   ]
 }

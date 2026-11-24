@@ -17,6 +17,9 @@ import {
   claimOfferInput,
   institutionInput,
   institutionPatch,
+  hotelCertificateInput,
+  hotelCertificatePatch,
+  hotelCertificateUseInput,
   offerInput,
   offerPatch,
   isoDate,
@@ -26,6 +29,7 @@ import {
 import * as accounts from "../services/accounts";
 import * as bon from "../services/bonuses";
 import * as catalog from "../services/catalog";
+import * as certificates from "../services/certificates";
 import { BadRequestError, NotFoundError, type ServiceContext } from "../services/context";
 import { getDashboard } from "../services/dashboard";
 import { checkAllProducts, checkProductEligibility, getFive24 } from "../services/eligibility";
@@ -185,6 +189,34 @@ export function createApi() {
   api.delete("/benefits/:id", async (c) => c.json(await bon.deleteBenefit(c.var.svc, c.req.param("id"))));
   api.post("/benefits/:id/uses", async (c) => c.json(await bon.markBenefitUsed(c.var.svc, c.req.param("id"), await body(c, benefitUseInput)), 201));
   api.delete("/benefit-uses/:id", async (c) => c.json(await bon.deleteBenefitUse(c.var.svc, c.req.param("id"))));
+
+  // Individually issued hotel free-night certificates (separate from recurring benefit definitions)
+  api.get("/hotel-certificates", async (c) => {
+    const q = z
+      .object({
+        status: z.enum(["unused", "used", "expired"]).optional(),
+        accountId: z.string().optional(),
+        expiringWithinDays: z.coerce.number().int().min(0).max(3650).optional(),
+      })
+      .safeParse({
+        status: c.req.query("status"),
+        accountId: c.req.query("accountId"),
+        expiringWithinDays: c.req.query("expiringWithinDays"),
+      });
+    if (!q.success) throw new BadRequestError("Invalid hotel certificate filter");
+    return c.json(await certificates.listCertificates(c.var.svc, q.data));
+  });
+  api.post("/accounts/:id/hotel-certificates", async (c) =>
+    c.json(await certificates.createCertificate(c.var.svc, c.req.param("id"), await body(c, hotelCertificateInput)), 201),
+  );
+  api.patch("/hotel-certificates/:id", async (c) =>
+    c.json(await certificates.updateCertificate(c.var.svc, c.req.param("id"), await body(c, hotelCertificatePatch))),
+  );
+  api.post("/hotel-certificates/:id/use", async (c) => {
+    const input = await body(c, hotelCertificateUseInput);
+    return c.json(await certificates.markCertificateUsed(c.var.svc, c.req.param("id"), input.usedAt));
+  });
+  api.delete("/hotel-certificates/:id", async (c) => c.json(await certificates.deleteCertificate(c.var.svc, c.req.param("id"))));
 
   // Rules
   const ruleOpts = (c: Context) => ({
