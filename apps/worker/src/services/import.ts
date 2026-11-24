@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { accounts, bonuses, benefits, events, institutions, offers } from "../db/schema";
+import { accounts, bonuses, benefits, events, institutions, loyaltyBalances, offers } from "../db/schema";
 import { importPayload, offerInput, type ImportPayload } from "../schemas";
 import { createOffer } from "./offers";
 import { createAccount } from "./accounts";
@@ -10,6 +10,7 @@ export interface ImportResult {
   dryRun: boolean;
   created: number;
   offersCreated: number;
+  loyaltyBalancesCreated: number;
   skipped: { index: number; reason: string }[];
   errors: { index: number; error: string }[];
   createdIds: string[];
@@ -31,7 +32,7 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
   const products = await listProducts(ctx, { includeArchived: true });
   const insts = await listInstitutions(ctx);
   const existing = await ctx.db.select().from(accounts).where(eq(accounts.ownerId, ctx.ownerId));
-  const result: ImportResult = { dryRun: !!opts.dryRun, created: 0, offersCreated: 0, skipped: [], errors: [], createdIds: [] };
+  const result: ImportResult = { dryRun: !!opts.dryRun, created: 0, offersCreated: 0, loyaltyBalancesCreated: 0, skipped: [], errors: [], createdIds: [] };
 
   for (const [index, item] of payload.accounts.entries()) {
     try {
@@ -127,6 +128,27 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
       }
       if (!opts.dryRun) existingOffers.push(await createOffer(ctx, parsedOffer.data));
       result.offersCreated++;
+    } catch (err) {
+      result.errors.push({ index, error: (err as Error).message });
+    }
+  }
+  // Loyalty balances use exact-record duplicate detection so two accounts with the same
+  // program remain distinct when their balances differ (and may also be added via CRUD).
+  const existingLoyalty = await ctx.db.select().from(loyaltyBalances).where(eq(loyaltyBalances.ownerId, ctx.ownerId));
+  for (const [i, item] of payload.loyaltyBalances.entries()) {
+    const index = payload.accounts.length + payload.offers.length + i;
+    try {
+      if (existingLoyalty.some((row) => row.category === item.category && row.program === item.program && row.balance === item.balance && row.notes === (item.notes ?? null))) {
+        result.skipped.push({ index, reason: `Loyalty balance already exists: ${item.program} (${item.balance})` });
+        continue;
+      }
+      if (!opts.dryRun) {
+        const row = { id: newId(), ownerId: ctx.ownerId, ...item, notes: item.notes ?? null };
+        await ctx.db.insert(loyaltyBalances).values(row);
+        existingLoyalty.push({ ...row, createdAt: "", updatedAt: "" });
+        result.createdIds.push(row.id);
+      }
+      result.loyaltyBalancesCreated++;
     } catch (err) {
       result.errors.push({ index, error: (err as Error).message });
     }

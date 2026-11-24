@@ -226,6 +226,24 @@ export const hotelCertificatePatch = z
 
 export const hotelCertificateUseInput = z.object({ usedAt: isoDate.optional() }).strict();
 
+export const LOYALTY_CATEGORIES = ["flight", "hotel", "credit_card"] as const;
+const loyaltyFields = {
+  category: z.enum(LOYALTY_CATEGORIES),
+  program: z.string().trim().min(1).max(120),
+  balance: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  notes: optText(1000),
+};
+export const loyaltyBalanceInput = z.object(loyaltyFields).strict();
+export const loyaltyBalancePatch = z
+  .object({
+    category: loyaltyFields.category.optional(),
+    program: loyaltyFields.program.optional(),
+    balance: loyaltyFields.balance.optional(),
+    notes: loyaltyFields.notes,
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" });
+
 /** Bulk import format (JSON). See docs/IMPORT.md. */
 export const importAccount = accountBase.extend({
   /** Catalog product id, or a product name to match case-insensitively. */
@@ -238,6 +256,7 @@ export const importAccount = accountBase.extend({
 export const importPayload = z.object({
   version: z.literal(1).default(1),
   accounts: z.array(importAccount).max(2000).default([]),
+  loyaltyBalances: z.array(loyaltyBalanceInput).max(2000).default([]),
   /** Offers for the 机会 page; `product` / `issuer` resolve like accounts. */
   offers: z.array(z.record(z.string(), z.unknown())).max(500).default([]),
 });

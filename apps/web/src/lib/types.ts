@@ -118,6 +118,17 @@ export interface HotelCertificate {
   productProgram: string | null;
 }
 
+export type LoyaltyCategory = "flight" | "hotel" | "credit_card";
+export interface LoyaltyBalance {
+  id: string;
+  category: LoyaltyCategory;
+  program: string;
+  balance: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AccountEvent {
   id: string;
   accountId: string;

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import type { Opportunity, AccountDetail, AccountSummary, Benefit, Dashboard, EligibilityOverviewRow, EligibilityResult, HotelCertificate, Institution, Product, UpcomingBonus } from "./types";
+import type { Opportunity, AccountDetail, AccountSummary, Benefit, Dashboard, EligibilityOverviewRow, EligibilityResult, HotelCertificate, Institution, LoyaltyBalance, Product, UpcomingBonus } from "./types";
 
 export const useDashboard = () => useQuery({ queryKey: ["dashboard"], queryFn: () => api.get<Dashboard>("/dashboard") });
 export const useAccounts = () => useQuery({ queryKey: ["accounts"], queryFn: () => api.get<AccountSummary[]>("/accounts") });
+export const useLoyaltyBalances = () => useQuery({ queryKey: ["loyalty-balances"], queryFn: () => api.get<LoyaltyBalance[]>("/loyalty-balances") });
 export const useAccount = (id: string | null) =>
   useQuery({ queryKey: ["account", id], queryFn: () => api.get<AccountDetail>(`/accounts/${id}`), enabled: !!id });
 export const useProducts = () => useQuery({ queryKey: ["products"], queryFn: () => api.get<Product[]>("/products"), staleTime: 5 * 60_000 });
@@ -38,7 +39,7 @@ export function useMutate<TVars, TRes = unknown>(fn: (v: TVars) => Promise<TRes>
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      for (const k of ["opportunities", "bonuses", "accounts", "account", "dashboard", "benefits", "hotel-certificates", "upcoming", "eligibility", "eligibility-all", "products", "institutions"])
+      for (const k of ["opportunities", "bonuses", "accounts", "account", "loyalty-balances", "dashboard", "benefits", "hotel-certificates", "upcoming", "eligibility", "eligibility-all", "products", "institutions"])
         qc.invalidateQueries({ queryKey: [k] });
     },
   });

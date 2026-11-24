@@ -34,7 +34,7 @@ describe("MCP server", () => {
     const r = await rpc("tools/list", {});
     const names = r.result.tools.map((t: any) => t.name).sort();
     expect(names).toEqual(
-      ["add_account", "add_benefit", "add_hotel_certificate", "update_benefit", "update_hotel_certificate", "delete_benefit", "delete_hotel_certificate", "delete_account", "add_institution", "add_offer", "add_product", "archive_product", "list_institutions", "list_opportunities", "list_hotel_certificates", "update_account", "update_institution", "update_offer", "update_product", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "mark_hotel_certificate_used", "record_event", "upcoming_deadlines"].sort(),
+      ["add_account", "add_benefit", "add_hotel_certificate", "add_loyalty_balance", "update_benefit", "update_hotel_certificate", "update_loyalty_balance", "delete_benefit", "delete_hotel_certificate", "delete_loyalty_balance", "delete_account", "add_institution", "add_offer", "add_product", "archive_product", "list_institutions", "list_opportunities", "list_hotel_certificates", "list_loyalty_balances", "update_account", "update_institution", "update_offer", "update_product", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "mark_hotel_certificate_used", "record_event", "upcoming_deadlines"].sort(),
     );
   });
 
@@ -86,6 +86,17 @@ describe("MCP server", () => {
 
     expect((await callTool("delete_account", { accountId: acct.data.id })).data.deleted).toBe(acct.data.id);
     expect((await callTool("get_account", { accountId: acct.data.id })).isError).toBe(true);
+  });
+
+  it("manages loyalty balances through MCP for its authenticated owner", async () => {
+    const first = await callTool("add_loyalty_balance", { category: "flight", program: "Alaska", balance: 97148 });
+    const second = await callTool("add_loyalty_balance", { category: "flight", program: "Alaska", balance: 83139 });
+    expect(first.isError).toBe(false);
+    expect(first.data.ownerId).toBe("mcp-user@example.com");
+    expect((await callTool("list_loyalty_balances", { category: "flight" })).data.filter((row: any) => row.program === "Alaska")).toHaveLength(2);
+    expect((await callTool("update_loyalty_balance", { balanceId: first.data.id, balance: 100000 })).data.balance).toBe(100000);
+    expect((await callTool("add_loyalty_balance", { category: "hotel", program: "Hyatt", balance: -1 })).isError).toBe(true);
+    expect((await callTool("delete_loyalty_balance", { balanceId: second.data.id })).data.deleted).toBe(second.data.id);
   });
 
   it("/mcp requires an OAuth bearer token", async () => {

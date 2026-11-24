@@ -6,6 +6,8 @@ never committed to the repository. If you keep a local file, put it under `priva
 
 Use **预览 (dry run)** first: it validates every row and reports what would be created.
 Re-importing is safe: an account with the same product, open date and trailing digits is skipped.
+Loyalty balances are also idempotent by exact category, program, balance and notes; two rows with
+the same program but different balances remain separate accounts.
 
 ## JSON
 
@@ -31,6 +33,25 @@ Re-importing is safe: an account with the same product, open date and trailing d
   ]
 }
 ```
+
+## Loyalty balances
+
+The same JSON can include a `loyaltyBalances` array. Categories are `flight`, `hotel`, and
+`credit_card`; `program` is a display label and is deliberately not unique.
+
+```json
+{
+  "version": 1,
+  "loyaltyBalances": [
+    { "category": "flight", "program": "Example Airline", "balance": 50000 },
+    { "category": "flight", "program": "Example Airline", "balance": 25000, "notes": "second account" },
+    { "category": "hotel", "program": "Example Hotel", "balance": 80000 }
+  ]
+}
+```
+
+Balances must be non-negative safe integers. Use Settings → 导入历史 or `POST /api/import`
+while authenticated; the owner identity comes from the session and is never accepted in the payload.
 
 Account fields:
 
