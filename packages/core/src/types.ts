@@ -32,7 +32,7 @@ export type InstitutionType = (typeof INSTITUTION_TYPES)[number];
 export const NETWORKS = ["visa", "mastercard", "amex", "discover", "other"] as const;
 export type Network = (typeof NETWORKS)[number];
 
-export const BONUS_REQUIREMENT_TYPES = ["spend", "direct_deposit", "balance", "other"] as const;
+export const BONUS_REQUIREMENT_TYPES = ["spend", "deposit", "direct_deposit", "balance", "other"] as const;
 export type BonusRequirementType = (typeof BONUS_REQUIREMENT_TYPES)[number];
 
 export const REWARD_UNITS = ["points", "miles", "USD"] as const;

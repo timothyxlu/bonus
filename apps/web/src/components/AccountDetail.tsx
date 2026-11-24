@@ -1,4 +1,4 @@
-import { annualAmount, BENEFIT_PERIODS, BENEFIT_UNITS, BONUS_REQUIREMENT_TYPES, BONUS_STATUSES, EVENT_TYPES, REWARD_UNITS, type BenefitPeriod, type EventType } from "@bonus/core";
+import { annualAmount, BENEFIT_PERIODS, BENEFIT_UNITS, BONUS_REQUIREMENT_TYPES, BONUS_STATUSES, EVENT_TYPES, REWARD_UNITS, type BenefitPeriod, type BonusRequirementType, type BonusStep, type EventType } from "@bonus/core";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { t, td, type MessageKey } from "../i18n";
 import { api } from "../lib/api";
@@ -156,7 +156,9 @@ function BonusesSection({ account }: { account: Detail }) {
 
 function ProgressForm({ bonus, onDone }: { bonus: Bonus; onDone: () => void }) {
   const [v, setV] = useState(String(bonus.progress ?? 0));
-  const m = useMutate(() => api.patch(`/bonuses/${bonus.id}`, { progress: Number(v) }));
+  const [steps, setSteps] = useState<StepDraft[]>(() => bonus.steps.map(toDraft));
+  const multi = bonus.steps.length > 0;
+  const m = useMutate(() => api.patch(`/bonuses/${bonus.id}`, multi ? { steps: steps.map(fromDraft) } : { progress: Number(v) }));
   return (
     <form
       onSubmit={(e) => {
@@ -165,9 +167,30 @@ function ProgressForm({ bonus, onDone }: { bonus: Bonus; onDone: () => void }) {
       }}
       className="space-y-3"
     >
-      <Field label={`${t("bonus.progress")} / ${fmtUsd(bonus.amountRequired)}`}>
-        <Input type="number" step="0.01" min="0" value={v} onChange={(e) => setV(e.target.value)} autoFocus />
-      </Field>
+      {multi ? (
+        steps.map((s, i) => (
+          <fieldset key={i} className="space-y-2 rounded-[var(--radius-row)] bg-sunken p-3">
+            <legend className="sr-only">{t("bonus.step", { n: i + 1 })}</legend>
+            <p className="text-sm font-medium">
+              {i + 1}. {td(`req.${s.type}`)}
+              {s.description && <span className="font-normal text-muted"> · {s.description}</span>}
+            </p>
+            {s.amount !== "" && (
+              <Field label={`${t("bonus.step.progress")} / ${fmtUsd(Number(s.amount))}`}>
+                <Input type="number" step="0.01" min="0" value={s.progress} onChange={(e) => setSteps((x) => x.map((y, j) => (j === i ? { ...y, progress: e.target.value } : y)))} autoFocus={i === bonus.currentStep} />
+              </Field>
+            )}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={s.done} onChange={(e) => setSteps((x) => x.map((y, j) => (j === i ? { ...y, done: e.target.checked } : y)))} className="h-4 w-4" />
+              {t("bonus.step.done")}
+            </label>
+          </fieldset>
+        ))
+      ) : (
+        <Field label={`${t("bonus.progress")} / ${fmtUsd(bonus.amountRequired)}`}>
+          <Input type="number" step="0.01" min="0" value={v} onChange={(e) => setV(e.target.value)} autoFocus />
+        </Field>
+      )}
       <ErrorText error={m.error} />
       <div className="flex justify-end">
         <Button type="submit" variant="primary" disabled={m.isPending}>
@@ -175,6 +198,103 @@ function ProgressForm({ bonus, onDone }: { bonus: Bonus; onDone: () => void }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+interface StepDraft {
+  type: BonusRequirementType;
+  amount: string;
+  progress: string;
+  dueBy: string;
+  holdFrom: string;
+  holdUntil: string;
+  description: string;
+  done: boolean;
+}
+
+const toDraft = (s: BonusStep): StepDraft => ({
+  type: s.type,
+  amount: s.amount?.toString() ?? "",
+  progress: s.progress?.toString() ?? "0",
+  dueBy: s.dueBy ?? "",
+  holdFrom: s.holdFrom ?? "",
+  holdUntil: s.holdUntil ?? "",
+  description: s.description ?? "",
+  done: s.done,
+});
+
+const fromDraft = (s: StepDraft): BonusStep => ({
+  type: s.type,
+  amount: s.amount === "" ? null : Number(s.amount),
+  progress: s.progress === "" ? 0 : Number(s.progress),
+  dueBy: s.dueBy || null,
+  holdFrom: (s.type === "balance" && s.holdFrom) || null,
+  holdUntil: (s.type === "balance" && s.holdUntil) || null,
+  description: s.description.trim() || null,
+  done: s.done,
+});
+
+const emptyStep = (type: BonusRequirementType): StepDraft => ({ type, amount: "", progress: "0", dueBy: "", holdFrom: "", holdUntil: "", description: "", done: false });
+
+/** Editor for the ordered conditions of one multi-step bonus. */
+function BonusStepsEditor({ steps, onChange }: { steps: StepDraft[]; onChange: (steps: StepDraft[]) => void }) {
+  const patch = (i: number, p: Partial<StepDraft>) => onChange(steps.map((s, j) => (j === i ? { ...s, ...p } : s)));
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">{t("bonus.steps")}</p>
+        <Button type="button" size="sm" variant="ghost" onClick={() => onChange([...steps, emptyStep(steps.length ? "balance" : "deposit")])} disabled={steps.length >= 10}>
+          + {t("bonus.addStep")}
+        </Button>
+      </div>
+      {steps.length === 0 && <p className="text-xs text-muted">{t("bonus.stepsHint")}</p>}
+      {steps.map((s, i) => (
+        <fieldset key={i} className="grid grid-cols-2 gap-2 rounded-[var(--radius-row)] bg-sunken p-3">
+          <legend className="sr-only">{t("bonus.step", { n: i + 1 })}</legend>
+          <div className="col-span-2 flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">{t("bonus.step", { n: i + 1 })}</span>
+            <Button type="button" size="sm" variant="danger" aria-label={`${t("bonus.removeStep")} ${i + 1}`} onClick={() => onChange(steps.filter((_, j) => j !== i))}>
+              {t("bonus.removeStep")}
+            </Button>
+          </div>
+          <Field label={t("bonus.requirementType")}>
+            <Select value={s.type} onChange={(e) => patch(i, { type: e.target.value as BonusRequirementType })}>
+              {BONUS_REQUIREMENT_TYPES.map((x) => (
+                <option key={x} value={x}>
+                  {td(`req.${x}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("bonus.step.amount")}>
+            <Input type="number" min="0" step="0.01" value={s.amount} onChange={(e) => patch(i, { amount: e.target.value })} />
+          </Field>
+          <Field label={t("bonus.step.progress")}>
+            <Input type="number" min="0" step="0.01" value={s.progress} onChange={(e) => patch(i, { progress: e.target.value })} />
+          </Field>
+          <Field label={t("bonus.step.dueBy")}>
+            <Input type="date" value={s.dueBy} onChange={(e) => patch(i, { dueBy: e.target.value })} />
+          </Field>
+          {s.type === "balance" && (
+            <>
+              <Field label={t("bonus.step.holdFrom")}>
+                <Input type="date" value={s.holdFrom} onChange={(e) => patch(i, { holdFrom: e.target.value })} />
+              </Field>
+              <Field label={t("bonus.step.holdUntil")}>
+                <Input type="date" value={s.holdUntil} onChange={(e) => patch(i, { holdUntil: e.target.value })} />
+              </Field>
+            </>
+          )}
+          <Field label={t("bonus.step.description")} className="col-span-2">
+            <Input value={s.description} maxLength={300} onChange={(e) => patch(i, { description: e.target.value })} />
+          </Field>
+          <label className="col-span-2 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={s.done} onChange={(e) => patch(i, { done: e.target.checked })} className="h-4 w-4" />
+            {t("bonus.step.done")}
+          </label>
+        </fieldset>
+      ))}
+    </div>
   );
 }
 
@@ -190,6 +310,8 @@ function BonusForm({ accountId, initial, onDone }: { accountId: string; initial?
     status: initial?.status ?? "in_progress",
     earnedAt: initial?.earnedAt ?? "",
   });
+  const [steps, setSteps] = useState<StepDraft[]>(() => (initial?.steps ?? []).map(toDraft));
+  const multi = steps.length > 0;
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
   const num = (s: string) => (s === "" ? null : Number(s));
   const body = () => ({
@@ -202,6 +324,8 @@ function BonusForm({ accountId, initial, onDone }: { accountId: string; initial?
     rewardUnit: f.rewardUnit,
     status: f.status,
     earnedAt: f.earnedAt || null,
+    steps: steps.map(fromDraft),
+    ...(multi ? { requirementType: steps[0]!.type } : {}),
   });
   const save = useMutate(() => (initial ? api.patch(`/bonuses/${initial.id}`, body()) : api.post(`/accounts/${accountId}/bonuses`, body())));
   const del = useMutate(() => api.del(`/bonuses/${initial!.id}`));
@@ -214,21 +338,28 @@ function BonusForm({ accountId, initial, onDone }: { accountId: string; initial?
       <Field label={t("bonus.description")} className="col-span-2">
         <Input value={f.description} onChange={set("description")} placeholder="e.g. 75k after $5k / 3 months" />
       </Field>
-      <Field label={t("bonus.requirementType")}>
-        <Select value={f.requirementType} onChange={set("requirementType")}>
-          {BONUS_REQUIREMENT_TYPES.map((x) => (
-            <option key={x} value={x}>
-              {td(`req.${x}`)}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field label={t("bonus.amountRequired")}>
-        <Input type="number" min="0" step="0.01" value={f.amountRequired} onChange={set("amountRequired")} />
-      </Field>
-      <Field label={t("bonus.progress")}>
-        <Input type="number" min="0" step="0.01" value={f.progress} onChange={set("progress")} />
-      </Field>
+      {!multi && (
+        <>
+          <Field label={t("bonus.requirementType")}>
+            <Select value={f.requirementType} onChange={set("requirementType")}>
+              {BONUS_REQUIREMENT_TYPES.map((x) => (
+                <option key={x} value={x}>
+                  {td(`req.${x}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("bonus.amountRequired")}>
+            <Input type="number" min="0" step="0.01" value={f.amountRequired} onChange={set("amountRequired")} />
+          </Field>
+          <Field label={t("bonus.progress")}>
+            <Input type="number" min="0" step="0.01" value={f.progress} onChange={set("progress")} />
+          </Field>
+        </>
+      )}
+      <div className="col-span-2">
+        <BonusStepsEditor steps={steps} onChange={setSteps} />
+      </div>
       <Field label={t("bonus.deadline")}>
         <Input type="date" value={f.deadline} onChange={set("deadline")} />
       </Field>

@@ -71,6 +71,20 @@
       "when": 1795496309522,
       "tag": "0009_adorable_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795524812086,
+      "tag": "0010_crazy_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795525421225,
+      "tag": "0011_windy_mindworm",
+      "breakpoints": true
     }
   ]
 }

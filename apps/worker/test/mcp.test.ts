@@ -34,7 +34,7 @@ describe("MCP server", () => {
     const r = await rpc("tools/list", {});
     const names = r.result.tools.map((t: any) => t.name).sort();
     expect(names).toEqual(
-      ["add_account", "add_benefit", "add_hotel_certificate", "add_loyalty_balance", "update_benefit", "update_hotel_certificate", "update_loyalty_balance", "delete_benefit", "delete_hotel_certificate", "delete_loyalty_balance", "delete_account", "add_institution", "add_offer", "add_product", "archive_product", "list_institutions", "list_opportunities", "list_hotel_certificates", "list_loyalty_balances", "update_account", "update_institution", "update_offer", "update_product", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "mark_hotel_certificate_used", "record_event", "upcoming_deadlines"].sort(),
+      ["add_account", "add_benefit", "add_bonus", "update_bonus", "delete_bonus", "add_hotel_certificate", "add_loyalty_balance", "update_benefit", "update_hotel_certificate", "update_loyalty_balance", "delete_benefit", "delete_hotel_certificate", "delete_loyalty_balance", "delete_account", "add_institution", "add_offer", "add_product", "archive_product", "list_institutions", "list_opportunities", "list_hotel_certificates", "list_loyalty_balances", "update_account", "update_institution", "update_offer", "update_product", "check_eligibility", "five_24_status", "get_account", "list_accounts", "list_benefits", "list_bonuses", "list_products", "mark_benefit_used", "mark_hotel_certificate_used", "record_event", "upcoming_deadlines"].sort(),
     );
   });
 
@@ -86,6 +86,59 @@ describe("MCP server", () => {
 
     expect((await callTool("delete_account", { accountId: acct.data.id })).data.deleted).toBe(acct.data.id);
     expect((await callTool("get_account", { accountId: acct.data.id })).isError).toBe(true);
+  });
+
+  it("adds, updates and deletes a multi-step bank bonus through MCP", async () => {
+    const acct = await callTool("add_account", { kind: "bank_account", institutionId: "chase", openedAt: "2026-11-01" });
+    expect(acct.isError).toBe(false);
+    const add = await callTool("add_bonus", {
+      accountId: acct.data.id,
+      description: "$500 for $15k new money held 90 days",
+      rewardAmount: 500,
+      rewardUnit: "USD",
+      steps: [
+        { type: "deposit", amount: 15000, progress: 15000, dueBy: "2026-11-30" },
+        { type: "balance", amount: 15000, progress: 15000, holdUntil: "2027-02-28" },
+      ],
+    });
+    expect(add.isError).toBe(false);
+    expect(add.data).toMatchObject({ ownerId: "mcp-user@example.com", deadline: "2027-02-28", stepsMet: 1, currentStep: 1, status: "in_progress" });
+    expect(add.data.steps.map((s: any) => s.state)).toEqual(["done", "holding"]);
+
+    const listed = await callTool("list_bonuses", { kind: "bank_account" });
+    expect(listed.data).toHaveLength(1);
+    expect(listed.data[0].steps).toHaveLength(2);
+
+    // Bad step dates are rejected.
+    expect((await callTool("update_bonus", { bonusId: add.data.id, steps: [{ type: "balance", amount: 1, holdFrom: "2027-03-01", holdUntil: "2027-02-01" }] })).isError).toBe(true);
+
+    const steps = add.data.steps.map(({ type, amount, progress, dueBy, holdFrom, holdUntil, description }: any, i: number) => ({ type, amount, progress, dueBy, holdFrom, holdUntil, description, done: i === 1 }));
+    const upd = await callTool("update_bonus", { bonusId: add.data.id, steps });
+    expect(upd.data).toMatchObject({ status: "met", allStepsMet: true, stepsMet: 2 });
+    expect((await callTool("update_bonus", { bonusId: add.data.id, status: "posted" })).data).toMatchObject({ status: "posted", earnedAt: "2026-11-23" });
+
+    // A partial update leaves omitted fields (reward unit, steps, status) alone.
+    expect((await callTool("update_bonus", { bonusId: add.data.id, description: "renamed" })).data).toMatchObject({ status: "posted", rewardUnit: "USD", stepsMet: 2 });
+    const closed = await callTool("update_account", { accountId: acct.data.id, status: "closed", details: { accountType: "checking" } });
+    expect((await callTool("update_account", { accountId: acct.data.id, nickname: "Old checking" })).data).toMatchObject({ status: "closed", kind: "bank_account", details: { accountType: "checking" } });
+    expect(closed.isError).toBe(false);
+
+    expect((await callTool("delete_bonus", { bonusId: add.data.id })).data.deleted).toBe(add.data.id);
+    expect((await callTool("list_bonuses", { kind: "bank_account" })).data).toHaveLength(0);
+    expect((await callTool("delete_bonus", { bonusId: add.data.id })).isError).toBe(true);
+
+    const offer = await callTool("add_offer", {
+      kind: "bank_account",
+      institutionId: "chase",
+      title: "Chase $600",
+      rewardAmount: 600,
+      rewardUnit: "USD",
+      steps: [{ type: "deposit", amount: 15000, withinDays: 30 }, { type: "balance", amount: 15000, holdDays: 90 }],
+    });
+    expect(offer.isError).toBe(false);
+    expect(offer.data.steps[1]).toMatchObject({ type: "balance", holdDays: 90, withinDays: null });
+    const updOffer = await callTool("update_offer", { offerId: offer.data.id, steps: [{ type: "deposit", amount: 20000, withinDays: 45 }] });
+    expect(updOffer.data.steps).toEqual([{ type: "deposit", amount: 20000, withinDays: 45, holdDays: null, description: null }]);
   });
 
   it("manages loyalty balances through MCP for its authenticated owner", async () => {

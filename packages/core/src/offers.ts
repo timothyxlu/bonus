@@ -2,7 +2,8 @@
  * Opportunities: offers the owner could go after next, valued and checked
  * against their history. Works for every account kind.
  */
-import { addMonths } from "./dates";
+import type { BonusStep } from "./bonuses";
+import { addDays, addMonths } from "./dates";
 import { allBonuses, isOpenNow } from "./rules/history";
 import { checkEligibility, combineReasons, type EligibilityHistory, type EligibilityOptions } from "./rules/engine";
 import type { AccountKind, BonusRequirementType, EligibilityStatus, IsoDate, RewardUnit, RuleReason } from "./types";
@@ -39,6 +40,41 @@ export function centsPerUnit(unit: RewardUnit, currency?: string | null, overrid
   return hit?.cents ?? UNIT_DEFAULT_CENTS[unit];
 }
 
+/**
+ * One condition of a multi-step offer, relative to the account opening date,
+ * e.g. "deposit $15,000 within 30 days" then "keep $15,000 until day 90".
+ */
+export interface OfferStep {
+  type: BonusRequirementType;
+  /** Amount to deposit / spend, or the minimum balance to keep (USD). */
+  amount: number | null;
+  /** Finish within this many days of opening. */
+  withinDays: number | null;
+  /** Balance steps: keep the amount until this many days after opening. */
+  holdDays: number | null;
+  description: string | null;
+}
+
+/** Turn an offer's relative steps into dated bonus steps for an account opened on `openedAt`. */
+export function offerStepsToBonusSteps(steps: OfferStep[], openedAt: IsoDate): BonusStep[] {
+  return steps.map((s) => ({
+    type: s.type,
+    amount: s.amount,
+    progress: 0,
+    dueBy: s.withinDays !== null && s.withinDays !== undefined ? addDays(openedAt, s.withinDays) : null,
+    holdFrom: null,
+    holdUntil: s.holdDays !== null && s.holdDays !== undefined ? addDays(openedAt, s.holdDays) : null,
+    description: s.description,
+    done: false,
+  }));
+}
+
+/** Money an offer ties up: amountRequired, else the largest step amount. */
+export function offerRequiredAmount(o: Pick<OfferLike, "amountRequired" | "steps">): number {
+  if (o.amountRequired) return o.amountRequired;
+  return Math.max(0, ...(o.steps ?? []).map((s) => s.amount ?? 0));
+}
+
 export interface OfferLike {
   id: string;
   kind: AccountKind;
@@ -63,6 +99,8 @@ export interface OfferLike {
   /** Bank/gift offers: months after a previous bonus at this institution (same kind) before you qualify again. */
   cooldownMonths?: number | null;
   expiresAt?: IsoDate | null;
+  /** Multi-step conditions (relative to opening); replace requirementType/amountRequired/windowMonths when present. */
+  steps?: OfferStep[] | null;
 }
 
 export interface OfferValuation {
@@ -80,7 +118,7 @@ export function valueOffer(o: OfferLike, ctx: { currency?: string | null; produc
   const fee = o.feeWaivedFirstYear ? 0 : (o.annualFee ?? ctx.productAnnualFee ?? 0);
   const costUsd = fee + (o.otherCost ?? 0);
   const netUsd = grossUsd - costUsd;
-  const req = o.amountRequired ?? 0;
+  const req = offerRequiredAmount(o);
   return { grossUsd, costUsd, netUsd, centsPerPoint: cpp, returnOnRequired: req > 0 ? netUsd / req : null };
 }
 

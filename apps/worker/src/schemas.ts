@@ -121,7 +121,15 @@ const accountBase = z.object({
 export const accountInput = accountBase.refine((a) => a.productId || a.institutionId, {
   message: "productId or institutionId is required",
 });
-export const accountPatch = accountBase.partial();
+// zod 4's .partial() keeps .default()s, which would reset omitted fields on PATCH; drop them first.
+export const accountPatch = accountBase
+  .extend({
+    kind: z.enum(ACCOUNT_KINDS).optional(),
+    status: z.enum(ACCOUNT_STATUSES).optional(),
+    isAuthorizedUser: z.boolean().optional(),
+    details: z.record(z.string(), z.unknown()).optional(),
+  })
+  .partial();
 
 export const eventInput = z.object({
   type: z.enum(EVENT_TYPES),
@@ -131,6 +139,20 @@ export const eventInput = z.object({
   note: optText(2000),
   data: z.record(z.string(), z.unknown()).default({}),
 });
+
+/** One condition of a multi-step bonus (e.g. deposit $X by a date, then hold $X through a date). */
+export const bonusStep = z
+  .object({
+    type: z.enum(BONUS_REQUIREMENT_TYPES).default("other"),
+    amount: z.number().min(0).nullish().transform((v) => v ?? null),
+    progress: z.number().min(0).default(0),
+    dueBy: optDate.transform((v) => v ?? null),
+    holdFrom: optDate.transform((v) => v ?? null),
+    holdUntil: optDate.transform((v) => v ?? null),
+    description: optText(300).transform((v) => v ?? null),
+    done: z.boolean().default(false),
+  })
+  .refine((s) => !s.holdFrom || !s.holdUntil || s.holdFrom <= s.holdUntil, { message: "holdFrom must be on or before holdUntil" });
 
 export const bonusInput = z.object({
   productId: z.string().nullish(),
@@ -143,8 +165,19 @@ export const bonusInput = z.object({
   rewardUnit: z.enum(REWARD_UNITS).default("points"),
   status: z.enum(BONUS_STATUSES).default("in_progress"),
   earnedAt: optDate,
+  /** Multi-step conditions; when present they replace amountRequired/progress for progress tracking. */
+  steps: z.array(bonusStep).max(10).default([]),
 });
-export const bonusPatch = bonusInput.partial();
+// Without the defaults, so a PATCH only changes the fields it sends (see accountPatch).
+export const bonusPatch = bonusInput
+  .extend({
+    requirementType: z.enum(BONUS_REQUIREMENT_TYPES).optional(),
+    progress: z.number().min(0).optional(),
+    rewardUnit: z.enum(REWARD_UNITS).optional(),
+    status: z.enum(BONUS_STATUSES).optional(),
+    steps: z.array(bonusStep).max(10).optional(),
+  })
+  .partial();
 
 const benefitFields = {
   name: z.string().trim().min(1).max(120),
@@ -262,6 +295,17 @@ export const importPayload = z.object({
 });
 export type ImportPayload = z.infer<typeof importPayload>;
 
+/** One condition of a multi-step offer, in days from opening. */
+export const offerStep = z
+  .object({
+    type: z.enum(BONUS_REQUIREMENT_TYPES).default("other"),
+    amount: z.number().min(0).nullish().transform((v) => v ?? null),
+    withinDays: z.number().int().min(0).max(1100).nullish().transform((v) => v ?? null),
+    holdDays: z.number().int().min(0).max(1100).nullish().transform((v) => v ?? null),
+    description: optText(300).transform((v) => v ?? null),
+  })
+  .refine((s) => s.withinDays === null || s.holdDays === null || s.withinDays <= s.holdDays, { message: "withinDays must not be after holdDays" });
+
 export const offerInput = z
   .object({
     kind: z.enum(ACCOUNT_KINDS),
@@ -279,6 +323,7 @@ export const offerInput = z
     feeWaivedFirstYear: z.boolean().default(false),
     otherCost: z.number().min(0).nullish(),
     cooldownMonths: z.number().int().min(0).max(120).nullish(),
+    steps: z.array(offerStep).max(10).default([]),
     expiresAt: optDate,
     sourceUrl,
     notes: optText(2000),
@@ -297,6 +342,7 @@ export const offerPatch = z.object({
   feeWaivedFirstYear: z.boolean().optional(),
   otherCost: z.number().min(0).nullish(),
   cooldownMonths: z.number().int().min(0).max(120).nullish(),
+  steps: z.array(offerStep).max(10).optional(),
   expiresAt: optDate,
   sourceUrl,
   notes: optText(2000),

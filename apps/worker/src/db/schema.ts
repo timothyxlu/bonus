@@ -4,6 +4,8 @@ import type {
   AccountKind,
   AccountStatus,
   BenefitPeriod,
+  BonusStep,
+  OfferStep,
   BenefitUnit,
   BonusRequirementType,
   BonusStatus,
@@ -144,6 +146,8 @@ export const bonuses = sqliteTable(
     status: text("status").$type<BonusStatus>().notNull().default("in_progress"),
     /** Date the bonus posted - feeds the 24/48-month rules. */
     earnedAt: text("earned_at"),
+    /** Multi-step conditions that together make up this one bonus (e.g. deposit, then hold a balance). */
+    steps: text("steps", { mode: "json" }).$type<BonusStep[]>().notNull().default([]),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -288,6 +292,8 @@ export const offers = sqliteTable(
     feeWaivedFirstYear: integer("fee_waived_first_year", { mode: "boolean" }).notNull().default(false),
     otherCost: real("other_cost"),
     cooldownMonths: integer("cooldown_months"),
+    /** Multi-step conditions relative to opening (deposit within N days, then hold until day M, ...). */
+    steps: text("steps", { mode: "json" }).$type<OfferStep[]>().notNull().default([]),
     expiresAt: text("expires_at"),
     sourceUrl: text("source_url"),
     notes: text("notes"),

@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getDb } from "../db/client";
 import type { Env, McpProps } from "../env";
-import { accountInput, accountPatch, benefitInput, benefitPatch, benefitUseInput, eventInput, hotelCertificateInput, hotelCertificatePatch, institutionInput, institutionPatch, isoDate, loyaltyBalanceInput, loyaltyBalancePatch, LOYALTY_CATEGORIES, offerInput, offerPatch, productInput, productPatch } from "../schemas";
+import { accountInput, accountPatch, benefitInput, benefitPatch, benefitUseInput, bonusInput, bonusPatch, eventInput, hotelCertificateInput, hotelCertificatePatch, institutionInput, institutionPatch, isoDate, loyaltyBalanceInput, loyaltyBalancePatch, LOYALTY_CATEGORIES, offerInput, offerPatch, productInput, productPatch } from "../schemas";
 import * as catalog from "../services/catalog";
 import * as certificates from "../services/certificates";
 import * as offers from "../services/offers";
@@ -347,7 +347,7 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   server.registerTool(
     "list_bonuses",
     {
-      description: "List bonuses across all account kinds (credit card sign-up bonuses, bank account bonuses, gift card promos) with progress, filtered by status and/or kind.",
+      description: "List bonuses across all account kinds (credit card sign-up bonuses, bank account bonuses, gift card promos) with progress, filtered by status and/or kind. Multi-condition bonuses include steps (each with state done | holding | pending | overdue, ratio, daysLeft), stepsMet and currentStep. Ids feed update_bonus / delete_bonus.",
       inputSchema: z.object({
         status: z.array(z.enum(["in_progress", "met", "posted", "failed", "cancelled"])).optional(),
         kind: z.enum(["credit_card", "bank_account", "gift_card"]).optional(),
@@ -355,6 +355,43 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
       annotations: { readOnlyHint: true },
     },
     tool(async ({ status, kind }) => bon.listBonuses(svc(), { statuses: status, kind })),
+  );
+
+  const bonusHelp = [
+    "One bonus = one offer on one account, however many conditions it has.",
+    "Simple offer: requirementType (spend | deposit | direct_deposit | balance | other), amountRequired (USD), progress, deadline (YYYY-MM-DD).",
+    "Multi-condition offer (typical bank bonus: 'deposit $15k of new money within 30 days, then keep $15k until day 90'): give steps, an ordered list of {type, amount, progress, dueBy, holdFrom, holdUntil, description, done}.",
+    "A deposit/spend/direct_deposit step is met once progress >= amount; a balance step with holdUntil is 'holding' while progress (current balance) >= amount and met after holdUntil has passed (holdFrom defaults to the previous step's dueBy); a step with no amount is met only when done is true.",
+    "When steps are given, overall progress, days left and overdue come from the steps, deadline defaults to the last step date, and the bonus status moves to met automatically once every step is met.",
+    "rewardAmount + rewardUnit (points | miles | USD). status: in_progress | met | posted (bonus paid; earnedAt defaults to today) | failed | cancelled.",
+  ].join(" ");
+
+  server.registerTool(
+    "add_bonus",
+    {
+      description: `Add a bonus (credit card sign-up bonus, bank account bonus, gift card promo) to one of the user's accounts (accountId from list_accounts). ${bonusHelp}`,
+      inputSchema: bonusInput.extend({ accountId: z.string() }),
+    },
+    tool(async ({ accountId, ...b }) => bon.createBonus(svc(), accountId, b)),
+  );
+
+  server.registerTool(
+    "update_bonus",
+    {
+      description: `Edit a bonus (bonusId from list_bonuses or get_account): progress, status, deadline, reward, description... Only the fields you pass change; null clears an optional field. steps replaces the whole list, so send every step (e.g. to update one step's progress or set done: true, resend the list from list_bonuses with that step changed). ${bonusHelp}`,
+      inputSchema: bonusPatch.extend({ bonusId: z.string() }),
+    },
+    tool(async ({ bonusId, ...patch }) => bon.updateBonus(svc(), bonusId, patch)),
+  );
+
+  server.registerTool(
+    "delete_bonus",
+    {
+      description: "Permanently delete a bonus. A bonus that did not pay out is better kept with update_bonus status failed or cancelled, since posted dates feed the issuer rules.",
+      inputSchema: z.object({ bonusId: z.string() }),
+      annotations: { destructiveHint: true },
+    },
+    tool(async ({ bonusId }) => bon.deleteBonus(svc(), bonusId)),
   );
 
   server.registerTool(
@@ -370,7 +407,7 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   server.registerTool(
     "add_offer",
     {
-      description: "Record an offer for the opportunities page, e.g. after researching current public offers. Use productId (from list_products) for credit cards; otherwise institutionId (create it first in the app if needed). rewardUnit points/miles/USD; optional centsPerPoint or estValueUsd override the valuation; cooldownMonths encodes 'no bonus if you received one from this bank in the last N months'. Include sourceUrl.",
+      description: "Record an offer for the opportunities page, e.g. after researching current public offers. Use productId (from list_products) for credit cards; otherwise institutionId (create it first in the app if needed). rewardUnit points/miles/USD; optional centsPerPoint or estValueUsd override the valuation; cooldownMonths encodes 'no bonus if you received one from this bank in the last N months'. Include sourceUrl. Multi-condition offers (typical bank bonus: 'deposit $15k of new money within 30 days and keep $15k until day 90') go in steps, an ordered list of {type: spend | deposit | direct_deposit | balance | other, amount (USD), withinDays (finish within N days of opening), holdDays (balance steps: keep the amount until day N after opening), description}; the largest step amount counts as the required amount for return-on-deposit, and opening the account turns the steps into one dated multi-step bonus.",
       inputSchema: offerInput,
     },
     tool(async (a) => offers.createOffer(svc(), a)),
@@ -379,7 +416,7 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   server.registerTool(
     "update_offer",
     {
-      description: "Update an offer (e.g. new amount or expiry) or archive it with status 'archived' when it ends.",
+      description: "Update an offer (e.g. new amount, expiry or steps) or archive it with status 'archived' when it ends. Only the fields you pass change; steps replaces the whole list (see add_offer for the step format).",
       inputSchema: offerPatch.extend({ offerId: z.string() }),
     },
     tool(async ({ offerId, ...patch }) => offers.updateOffer(svc(), offerId, patch)),
