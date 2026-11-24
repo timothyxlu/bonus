@@ -1,6 +1,6 @@
-import { BENEFIT_PERIODS, BONUS_REQUIREMENT_TYPES, BONUS_STATUSES, EVENT_TYPES, REWARD_UNITS, type EventType } from "@bonus/core";
+import { annualAmount, BENEFIT_PERIODS, BENEFIT_UNITS, BONUS_REQUIREMENT_TYPES, BONUS_STATUSES, EVENT_TYPES, REWARD_UNITS, type BenefitPeriod, type EventType } from "@bonus/core";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { t, td } from "../i18n";
+import { t, td, type MessageKey } from "../i18n";
 import { api } from "../lib/api";
 import { cx, fmtUsd, todayIso } from "../lib/format";
 import { useAccount, useMutate, useProducts } from "../lib/queries";
@@ -277,27 +277,65 @@ function BonusForm({ accountId, initial, onDone }: { accountId: string; initial?
 
 // ---------------------------------------------------------------- Benefits
 
-export function BenefitItem({ b, showAccount, allowDelete }: { b: Benefit; showAccount?: boolean; allowDelete?: boolean }) {
+/** "$15" for USD; "1 晚" / "1 张" for other units. */
+export function fmtBenefitAmount(b: Pick<Benefit, "unit">, n: number) {
+  if ((b.unit ?? "USD") === "USD") return fmtUsd(n);
+  return t(`benefit.unitCount.${b.unit}` as MessageKey, { n });
+}
+
+function periodLabel(b: Pick<Benefit, "period" | "everyMonths">) {
+  if (b.period === "every_n_years") {
+    const years = (b.everyMonths ?? 48) / 12;
+    return t("period.everyNYears", { n: Number.isInteger(years) ? years : years.toFixed(1) });
+  }
+  return td(`period.${b.period}`);
+}
+
+export function BenefitItem({ b, showAccount, allowEdit }: { b: Benefit; showAccount?: boolean; allowEdit?: boolean }) {
+  const isUsd = (b.unit ?? "USD") === "USD";
   const [using, setUsing] = useState(false);
-  const [amount, setAmount] = useState(String(b.remaining || b.amount));
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState(isUsd ? String(b.remaining || b.periodAmount || b.amount) : "1");
   const [date, setDate] = useState(todayIso());
   const use = useMutate(() => api.post(`/benefits/${b.id}/uses`, { usedOn: date, amount: Number(amount) }));
   const undo = useMutate((useId: string) => api.del(`/benefit-uses/${useId}`));
-  const del = useMutate(() => api.del(`/benefits/${b.id}`));
+  const quota = isUsd ? (b.periodAmount ?? b.amount) : Math.max(1, b.periodAmount ?? b.amount);
+  const yearly = annualAmount(b);
   return (
-    <div className={cx("rounded-[var(--radius-row)] p-3", b.unused ? "bg-warn-soft" : "bg-sunken")}>
+    <div className={cx("rounded-[var(--radius-row)] p-3", b.unused ? "bg-warn-soft" : "bg-sunken", b.inEffect === false && "opacity-60")}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{b.name}</p>
+          <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+            <span className="truncate">{b.name}</span>
+            {b.enrollmentRequired && <Badge tone="indigo">{t("benefit.enroll")}</Badge>}
+            {!b.active && <Badge>{t("benefit.archived")}</Badge>}
+          </p>
           <p className="text-xs text-muted">
             {showAccount && b.accountLabel && <>{b.accountLabel} · </>}
-            {td(`period.${b.period}`)} · {t("detail.periodEnds", { date: b.currentPeriod.end })}
+            {periodLabel(b)} · {t("detail.periodEnds", { date: b.currentPeriod.end })}
+            {yearly > 0 && <> · {t("benefit.perYear", { v: fmtBenefitAmount(b, Math.round(yearly * 100) / 100) })}</>}
           </p>
+          {b.valueDescription && <p className="text-xs text-muted">{b.valueDescription}</p>}
+          {b.limitations && <p className="mt-0.5 text-xs text-muted">{b.limitations}</p>}
+          {(b.startsAt || b.endsAt) && (
+            <p className="tabular text-xs text-faint">
+              {b.startsAt && t("benefit.from", { date: b.startsAt })} {b.endsAt && t("benefit.until", { date: b.endsAt })}
+            </p>
+          )}
         </div>
-        <Badge tone={b.unused ? "amber" : "green"}>{t("detail.used", { used: b.used, amount: b.amount })}</Badge>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Badge tone={b.unused ? "amber" : "green"}>
+            {t("detail.usedOf", { used: fmtBenefitAmount(b, b.used), amount: fmtBenefitAmount(b, quota) })}
+          </Badge>
+          {b.sourceUrl && (
+            <a href={b.sourceUrl} target="_blank" rel="noreferrer noopener" className="text-xs text-brand hover:underline">
+              {t("opp.source")}
+            </a>
+          )}
+        </div>
       </div>
       <div className="mt-2">
-        <ProgressBar ratio={b.amount ? b.used / b.amount : b.unused ? 0 : 1} tone={b.unused ? "amber" : "green"} />
+        <ProgressBar ratio={quota ? b.used / quota : b.unused ? 0 : 1} tone={b.unused ? "amber" : "green"} />
       </div>
       {b.uses.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-1">
@@ -306,7 +344,7 @@ export function BenefitItem({ b, showAccount, allowDelete }: { b: Benefit; showA
             .map((u) => (
               <li key={u.id}>
                 <button className="rounded-md bg-surface px-1.5 py-0.5 text-xs text-muted ring-1 ring-line hover:line-through" title="撤销" onClick={() => undo.mutate(u.id)}>
-                  {u.usedOn} {fmtUsd(u.amount)} ✕
+                  {u.usedOn} {fmtBenefitAmount(b, u.amount || 1)} ✕
                 </button>
               </li>
             ))}
@@ -332,17 +370,24 @@ export function BenefitItem({ b, showAccount, allowDelete }: { b: Benefit; showA
           </form>
         ) : (
           <>
-            <Button size="sm" onClick={() => setUsing(true)}>
-              {t("detail.markUsed")}
-            </Button>
-            {allowDelete && (
-              <Button size="sm" variant="danger" onClick={() => confirm(t("common.confirmDelete")) && del.mutate()}>
-                {t("common.delete")}
+            {b.inEffect !== false && b.active && (
+              <Button size="sm" onClick={() => setUsing(true)}>
+                {t("detail.markUsed")}
+              </Button>
+            )}
+            {allowEdit && (
+              <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+                {t("common.edit")}
               </Button>
             )}
           </>
         )}
       </div>
+      {allowEdit && (
+        <Sheet open={editing} onClose={() => setEditing(false)} title={t("benefit.edit")} wide>
+          {editing && <BenefitForm accountId={b.accountId} initial={b} onDone={() => setEditing(false)} />}
+        </Sheet>
+      )}
     </div>
   );
 }
@@ -356,21 +401,72 @@ function BenefitsSection({ account }: { account: Detail }) {
       ) : (
         <div className="space-y-2">
           {account.benefits.map((b) => (
-            <BenefitItem key={b.id} b={b} allowDelete />
+            <BenefitItem key={b.id} b={b} allowEdit />
           ))}
         </div>
       )}
-      <Sheet open={adding} onClose={() => setAdding(false)} title={t("detail.addBenefit")}>
+      <Sheet open={adding} onClose={() => setAdding(false)} title={t("detail.addBenefit")} wide>
         {adding && <BenefitForm accountId={account.id} onDone={() => setAdding(false)} />}
       </Sheet>
     </Section>
   );
 }
 
-function BenefitForm({ accountId, onDone }: { accountId: string; onDone: () => void }) {
-  const [f, setF] = useState({ name: "", amount: "", period: "monthly", resetRule: "" });
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
-  const save = useMutate(() => api.post(`/accounts/${accountId}/benefits`, { name: f.name, amount: Number(f.amount || 0), period: f.period, resetRule: f.resetRule || null }));
+const OVERRIDE_SLOTS: Partial<Record<BenefitPeriod, number>> = { monthly: 12, quarterly: 4, semiannual: 2 };
+
+export function BenefitForm({ accountId, initial, onDone }: { accountId: string; initial?: Benefit; onDone: () => void }) {
+  const s = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
+  const [f, setF] = useState({
+    name: initial?.name ?? "",
+    amount: s(initial?.amount),
+    period: (initial?.period ?? "monthly") as BenefitPeriod,
+    unit: initial?.unit ?? "USD",
+    everyYears: initial?.everyMonths ? String(initial.everyMonths / 12) : "4",
+    valueDescription: initial?.valueDescription ?? "",
+    estValueUsd: s(initial?.estValueUsd),
+    enrollmentRequired: initial?.enrollmentRequired ?? false,
+    limitations: initial?.limitations ?? "",
+    sourceUrl: initial?.sourceUrl ?? "",
+    startsAt: initial?.startsAt ?? "",
+    endsAt: initial?.endsAt ?? "",
+    notes: initial?.notes ?? "",
+    active: initial?.active ?? true,
+    overrides: Object.fromEntries(Object.entries(initial?.amountByPeriod ?? {}).map(([k, v]) => [k, String(v)])) as Record<string, string>,
+  });
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const num = (v: string) => (v.trim() === "" ? null : Number(v));
+  const slots = OVERRIDE_SLOTS[f.period] ?? 0;
+  const slotLabel = (i: number) => (f.period === "monthly" ? t("benefit.slot.month", { n: i }) : f.period === "quarterly" ? `Q${i}` : i === 1 ? t("benefit.slot.h1") : t("benefit.slot.h2"));
+  const isUsd = f.unit === "USD";
+
+  const save = useMutate(() => {
+    const overrides = Object.fromEntries(
+      Object.entries(f.overrides)
+        .filter(([k, v]) => v.trim() !== "" && Number(k) <= slots)
+        .map(([k, v]) => [k, Number(v)]),
+    );
+    const body = {
+      name: f.name.trim(),
+      amount: Number(f.amount || 0),
+      period: f.period,
+      unit: f.unit,
+      everyYears: f.period === "every_n_years" ? Number(f.everyYears) : null,
+      everyMonths: f.period === "every_n_years" ? undefined : null,
+      amountByPeriod: slots && Object.keys(overrides).length ? overrides : null,
+      valueDescription: isUsd ? null : f.valueDescription.trim() || null,
+      estValueUsd: isUsd ? null : num(f.estValueUsd),
+      enrollmentRequired: f.enrollmentRequired,
+      limitations: f.limitations.trim() || null,
+      sourceUrl: f.sourceUrl.trim() || null,
+      startsAt: f.startsAt || null,
+      endsAt: f.endsAt || null,
+      notes: f.notes.trim() || null,
+      active: f.active,
+    };
+    return initial ? api.patch(`/benefits/${initial.id}`, body) : api.post(`/accounts/${accountId}/benefits`, body);
+  });
+  const del = useMutate(() => api.del(`/benefits/${initial!.id}`));
+
   return (
     <form
       onSubmit={(e) => {
@@ -382,8 +478,17 @@ function BenefitForm({ accountId, onDone }: { accountId: string; onDone: () => v
       <Field label={t("benefit.name")} className="col-span-2">
         <Input value={f.name} onChange={set("name")} required placeholder="e.g. Uber Cash" />
       </Field>
-      <Field label={t("benefit.amount")}>
-        <Input type="number" min="0" step="0.01" value={f.amount} onChange={set("amount")} />
+      <Field label={t("benefit.unit")}>
+        <Select value={f.unit} onChange={set("unit")}>
+          {BENEFIT_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {td(`benefit.unit.${u}`)}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label={isUsd ? t("benefit.amount") : t("benefit.count")}>
+        <Input type="number" min="0" step={isUsd ? "0.01" : "1"} value={f.amount} onChange={set("amount")} required />
       </Field>
       <Field label={t("benefit.period")}>
         <Select value={f.period} onChange={set("period")}>
@@ -394,13 +499,78 @@ function BenefitForm({ accountId, onDone }: { accountId: string; onDone: () => v
           ))}
         </Select>
       </Field>
-      <Field label={t("benefit.resetRule")} className="col-span-2">
-        <Input value={f.resetRule} onChange={set("resetRule")} placeholder={t("common.optional")} />
+      {f.period === "every_n_years" ? (
+        <Field label={t("benefit.everyYears")} hint={t("benefit.everyYearsHint")}>
+          <Input type="number" min="0.5" max="20" step="0.5" value={f.everyYears} onChange={set("everyYears")} required />
+        </Field>
+      ) : (
+        <span />
+      )}
+      {!isUsd && (
+        <>
+          <Field label={t("benefit.valueDescription")} className="col-span-2">
+            <Input value={f.valueDescription} onChange={set("valueDescription")} placeholder="e.g. Free night up to 35k points" />
+          </Field>
+          <Field label={t("benefit.estValueUsd")}>
+            <Input type="number" min="0" value={f.estValueUsd} onChange={set("estValueUsd")} />
+          </Field>
+          <span />
+        </>
+      )}
+      {slots > 0 && (
+        <fieldset className="col-span-2 rounded-[var(--radius-row)] border border-line p-3">
+          <legend className="px-1 text-sm font-medium text-muted">{t("benefit.overrides")}</legend>
+          <p className="mb-2 text-xs text-muted">{t("benefit.overridesHint")}</p>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {Array.from({ length: slots }, (_, i) => i + 1).map((i) => (
+              <Field key={i} label={slotLabel(i)}>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={f.overrides[String(i)] ?? ""}
+                  placeholder={f.amount || "—"}
+                  onChange={(e) => setF((x) => ({ ...x, overrides: { ...x.overrides, [String(i)]: e.target.value } }))}
+                />
+              </Field>
+            ))}
+          </div>
+        </fieldset>
+      )}
+      <Field label={t("benefit.limitations")} className="col-span-2">
+        <Input value={f.limitations} onChange={set("limitations")} placeholder={t("common.optional")} />
       </Field>
+      <Field label={t("benefit.startsAt")}>
+        <Input type="date" value={f.startsAt} onChange={set("startsAt")} />
+      </Field>
+      <Field label={t("benefit.endsAt")}>
+        <Input type="date" value={f.endsAt} onChange={set("endsAt")} />
+      </Field>
+      <Field label={t("opp.f.sourceUrl")} className="col-span-2">
+        <Input type="url" value={f.sourceUrl} onChange={set("sourceUrl")} placeholder="https://" />
+      </Field>
+      <Field label={t("acct.notes")} className="col-span-2">
+        <Input value={f.notes} onChange={set("notes")} />
+      </Field>
+      <label className="flex min-h-10 items-center gap-2 text-sm">
+        <input type="checkbox" checked={f.enrollmentRequired} onChange={(e) => setF((x) => ({ ...x, enrollmentRequired: e.target.checked }))} className="h-4 w-4" />
+        {t("benefit.enrollmentRequired")}
+      </label>
+      <label className="flex min-h-10 items-center gap-2 text-sm">
+        <input type="checkbox" checked={!f.active} onChange={(e) => setF((x) => ({ ...x, active: !e.target.checked }))} className="h-4 w-4" />
+        {t("benefit.archive")}
+      </label>
       <div className="col-span-2">
-        <ErrorText error={save.error} />
+        <ErrorText error={save.error ?? del.error} />
       </div>
-      <div className="col-span-2 flex justify-end">
+      <div className="col-span-2 flex justify-between gap-2">
+        {initial ? (
+          <Button type="button" variant="danger" onClick={() => confirm(t("common.confirmDelete")) && del.mutate(undefined, { onSuccess: onDone })}>
+            {t("common.delete")}
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button type="submit" variant="primary" disabled={save.isPending}>
           {t("common.save")}
         </Button>

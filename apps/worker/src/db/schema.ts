@@ -4,6 +4,7 @@ import type {
   AccountKind,
   AccountStatus,
   BenefitPeriod,
+  BenefitUnit,
   BonusRequirementType,
   BonusStatus,
   EventType,
@@ -165,6 +166,23 @@ export const benefits = sqliteTable(
     resetRule: text("reset_rule"),
     notes: text("notes"),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
+    /** USD, or a non-dollar benefit (free night, certificate, other) counted per period. */
+    unit: text("unit").$type<BenefitUnit>().notNull().default("USD"),
+    /** For non-USD units: what it is, e.g. "Free night up to 35k points". */
+    valueDescription: text("value_description"),
+    /** Optional USD estimate for one unit (non-USD benefits), for totals. */
+    estValueUsd: real("est_value_usd"),
+    /** every_n_years: cycle length in months (48 = 4 years, 54 = 4.5 years). */
+    everyMonths: integer("every_months"),
+    /** Per-period amount overrides keyed by period index (month 1-12 / quarter 1-4 / half 1-2). */
+    amountByPeriod: text("amount_by_period", { mode: "json" }).$type<Record<string, number>>(),
+    enrollmentRequired: integer("enrollment_required", { mode: "boolean" }).notNull().default(false),
+    /** Merchant / limitations text, e.g. "Uber rides or Uber Eats in the US". */
+    limitations: text("limitations"),
+    sourceUrl: text("source_url"),
+    /** Benefit in effect from (inclusive) / until (exclusive). */
+    startsAt: text("starts_at"),
+    endsAt: text("ends_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

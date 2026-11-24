@@ -1,11 +1,11 @@
-import { benefitStatus, bonusProgress, type AccountKind, type BonusStatus } from "@bonus/core";
+import { annualAmount, benefitStatus, bonusProgress, type AccountKind, type BonusStatus } from "@bonus/core";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { accounts, benefits, benefitUses, bonuses, institutions, products } from "../db/schema";
 import type { benefitInput, benefitPatch, benefitUseInput, bonusInput, bonusPatch } from "../schemas";
 import { accountLabel } from "./accounts";
 import { catalogView } from "./catalog";
-import { NotFoundError, newId, nowIso, type ServiceContext } from "./context";
+import { BadRequestError, NotFoundError, newId, nowIso, type ServiceContext } from "./context";
 
 async function requireAccount(ctx: ServiceContext, id: string) {
   const row = await ctx.db.select().from(accounts).where(and(eq(accounts.id, id), eq(accounts.ownerId, ctx.ownerId))).get();
@@ -102,10 +102,41 @@ export async function upcomingDeadlines(ctx: ServiceContext, opts: { withinDays?
 
 // ---------------------------------------------------------------- Benefits
 
+type BenefitRow = typeof benefits.$inferSelect;
+const OVERRIDE_RANGE: Partial<Record<string, number>> = { monthly: 12, quarterly: 4, semiannual: 2 };
+
+/**
+ * Normalise and cross-check benefit fields against the (merged) period:
+ * everyYears -> everyMonths, override keys within the period's range, every_n_years needs a cycle,
+ * endsAt after startsAt.
+ */
+function normalizeBenefit(merged: Partial<BenefitRow> & { everyYears?: number | null }, patch: Record<string, unknown>) {
+  const out: Record<string, unknown> = { ...patch };
+  delete out.everyYears;
+  if (patch.everyYears !== undefined && patch.everyYears !== null) out.everyMonths = Math.round((patch.everyYears as number) * 12);
+  const period = merged.period!;
+  const everyMonths = (out.everyMonths as number | null | undefined) ?? merged.everyMonths;
+  if (period === "every_n_years" && !everyMonths) throw new BadRequestError("every_n_years needs everyYears (e.g. 4 or 4.5) or everyMonths");
+  const overrides = (out.amountByPeriod as Record<string, number> | null | undefined) ?? merged.amountByPeriod;
+  if (overrides && Object.keys(overrides).length) {
+    const max = OVERRIDE_RANGE[period];
+    if (!max) throw new BadRequestError(`amountByPeriod only applies to monthly, quarterly or semiannual benefits (not ${period})`);
+    for (const k of Object.keys(overrides)) if (Number(k) < 1 || Number(k) > max) throw new BadRequestError(`amountByPeriod key ${k} is outside 1-${max} for ${period}`);
+  }
+  const startsAt = (out.startsAt as string | null | undefined) ?? merged.startsAt;
+  const endsAt = (out.endsAt as string | null | undefined) ?? merged.endsAt;
+  if (startsAt && endsAt && endsAt <= startsAt) throw new BadRequestError("endsAt must be after startsAt");
+  return out;
+}
+
 export async function createBenefit(ctx: ServiceContext, accountId: string, input: z.infer<typeof benefitInput>) {
   await requireAccount(ctx, accountId);
-  const [row] = await ctx.db.insert(benefits).values({ ...input, id: newId(), ownerId: ctx.ownerId, accountId }).returning();
-  return row!;
+  const values = normalizeBenefit({ ...input, everyMonths: input.everyMonths ?? null } as Partial<BenefitRow>, input as Record<string, unknown>);
+  const [row] = await ctx.db
+    .insert(benefits)
+    .values({ ...(values as typeof benefits.$inferInsert), id: newId(), ownerId: ctx.ownerId, accountId })
+    .returning();
+  return withStatus(ctx, row!);
 }
 
 async function requireBenefit(ctx: ServiceContext, id: string) {
@@ -115,9 +146,41 @@ async function requireBenefit(ctx: ServiceContext, id: string) {
 }
 
 export async function updateBenefit(ctx: ServiceContext, id: string, patch: z.infer<typeof benefitPatch>) {
-  await requireBenefit(ctx, id);
-  const [row] = await ctx.db.update(benefits).set({ ...patch, updatedAt: nowIso() }).where(eq(benefits.id, id)).returning();
-  return row!;
+  const current = await requireBenefit(ctx, id);
+  const merged = { ...current, ...patch } as Partial<BenefitRow>;
+  // Switching away from a period with overrides drops them unless new ones are given.
+  const p = patch as Record<string, unknown>;
+  if (patch.period && patch.period !== current.period && patch.amountByPeriod === undefined && !OVERRIDE_RANGE[patch.period]) p.amountByPeriod = null;
+  const set = normalizeBenefit({ ...merged, amountByPeriod: p.amountByPeriod === null ? null : merged.amountByPeriod }, p);
+  const [row] = await ctx.db
+    .update(benefits)
+    .set({ ...(set as Partial<BenefitRow>), updatedAt: nowIso() })
+    .where(and(eq(benefits.id, id), eq(benefits.ownerId, ctx.ownerId)))
+    .returning();
+  return withStatus(ctx, row!);
+}
+
+/** A benefit row plus its current-period status and yearly total. */
+async function withStatus(ctx: ServiceContext, b: BenefitRow) {
+  const [acct, uses] = await Promise.all([
+    ctx.db.select({ openedAt: accounts.openedAt }).from(accounts).where(eq(accounts.id, b.accountId)).get(),
+    ctx.db.select().from(benefitUses).where(eq(benefitUses.benefitId, b.id)),
+  ]);
+  return decorate(b, uses, ctx.today, acct?.openedAt ?? null);
+}
+
+function decorate(b: BenefitRow, uses: (typeof benefitUses.$inferSelect)[], today: string, openedAt: string | null) {
+  const status = benefitStatus(b, uses, today, openedAt);
+  const perYear = annualAmount(b);
+  return {
+    ...b,
+    ...status,
+    /** Yearly total in the benefit's unit (USD, or number of nights/certificates). */
+    annualAmount: perYear,
+    /** Yearly USD value: USD amount, or count x estValueUsd for other units (null if unknown). */
+    annualValueUsd: b.unit === "USD" ? perYear : b.estValueUsd ? perYear * b.estValueUsd : null,
+    uses: uses.filter((x) => x.usedOn >= status.currentPeriod.start && x.usedOn < status.currentPeriod.end),
+  };
 }
 
 export async function deleteBenefit(ctx: ServiceContext, id: string) {
@@ -128,11 +191,25 @@ export async function deleteBenefit(ctx: ServiceContext, id: string) {
 
 export async function markBenefitUsed(ctx: ServiceContext, benefitId: string, input: z.infer<typeof benefitUseInput>) {
   const benefit = await requireBenefit(ctx, benefitId);
+  let amount = input.amount;
+  if (!amount) {
+    // Default: whatever is left in the period containing usedOn (USD), or one unit.
+    const s = await withStatusAt(ctx, benefit, input.usedOn);
+    amount = benefit.unit === "USD" ? s.remaining || s.periodAmount : 1;
+  }
   const [row] = await ctx.db
     .insert(benefitUses)
-    .values({ id: newId(), ownerId: ctx.ownerId, benefitId, usedOn: input.usedOn, amount: input.amount || benefit.amount, note: input.note ?? null })
+    .values({ id: newId(), ownerId: ctx.ownerId, benefitId, usedOn: input.usedOn, amount, note: input.note ?? null })
     .returning();
   return row!;
+}
+
+async function withStatusAt(ctx: ServiceContext, b: BenefitRow, asOf: string) {
+  const [acct, uses] = await Promise.all([
+    ctx.db.select({ openedAt: accounts.openedAt }).from(accounts).where(eq(accounts.id, b.accountId)).get(),
+    ctx.db.select().from(benefitUses).where(eq(benefitUses.benefitId, b.id)),
+  ]);
+  return benefitStatus(b, uses, asOf, acct?.openedAt ?? null);
 }
 
 export async function deleteBenefitUse(ctx: ServiceContext, useId: string) {
@@ -143,7 +220,7 @@ export async function deleteBenefitUse(ctx: ServiceContext, useId: string) {
 }
 
 /** All benefits with their status in the current period. */
-export async function listBenefits(ctx: ServiceContext, opts: { accountId?: string; unusedOnly?: boolean } = {}) {
+export async function listBenefits(ctx: ServiceContext, opts: { accountId?: string; unusedOnly?: boolean; includeInactive?: boolean } = {}) {
   const rows = await ctx.db
     .select({ benefit: benefits, account: accounts, productName: products.name })
     .from(benefits)
@@ -152,8 +229,8 @@ export async function listBenefits(ctx: ServiceContext, opts: { accountId?: stri
     .where(
       and(
         eq(benefits.ownerId, ctx.ownerId),
-        eq(benefits.active, true),
-        eq(accounts.status, "open"),
+        opts.includeInactive ? undefined : eq(benefits.active, true),
+        opts.includeInactive ? undefined : eq(accounts.status, "open"),
         opts.accountId ? eq(benefits.accountId, opts.accountId) : undefined,
       ),
     )
@@ -167,16 +244,10 @@ export async function listBenefits(ctx: ServiceContext, opts: { accountId?: stri
         .orderBy(desc(benefitUses.usedOn))
     : [];
   return rows
-    .map((r) => {
-      const u = uses.filter((x) => x.benefitId === r.benefit.id);
-      const status = benefitStatus(r.benefit, u, ctx.today, r.account.openedAt);
-      return {
-        ...r.benefit,
-        ...status,
-        accountLabel: accountLabel(r.account, (r.account.productId && view.products.get(r.account.productId)?.name) || r.productName),
-        uses: u.filter((x) => x.usedOn >= status.currentPeriod.start && x.usedOn < status.currentPeriod.end),
-      };
-    })
-    .filter((b) => !opts.unusedOnly || b.unused)
+    .map((r) => ({
+      ...decorate(r.benefit, uses.filter((x) => x.benefitId === r.benefit.id), ctx.today, r.account.openedAt),
+      accountLabel: accountLabel(r.account, (r.account.productId && view.products.get(r.account.productId)?.name) || r.productName),
+    }))
+    .filter((b) => (!opts.unusedOnly || b.unused) && (opts.includeInactive || b.inEffect))
     .sort((a, b) => a.currentPeriod.end.localeCompare(b.currentPeriod.end));
 }

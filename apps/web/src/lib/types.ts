@@ -2,6 +2,7 @@ import type {
   AccountKind,
   AccountStatus,
   BenefitPeriod,
+  BenefitUnit,
   BonusRequirementType,
   BonusStatus,
   EligibilityResult,
@@ -79,10 +80,24 @@ export interface Benefit {
   resetRule: string | null;
   notes: string | null;
   active: boolean;
+  unit: BenefitUnit;
+  valueDescription: string | null;
+  estValueUsd: number | null;
+  everyMonths: number | null;
+  amountByPeriod: Record<string, number> | null;
+  enrollmentRequired: boolean;
+  limitations: string | null;
+  sourceUrl: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
   used: number;
   remaining: number;
   unused: boolean;
-  currentPeriod: { start: string; end: string };
+  periodAmount: number;
+  inEffect: boolean;
+  annualAmount?: number;
+  annualValueUsd?: number | null;
+  currentPeriod: { start: string; end: string; index: number | null };
   uses: BenefitUse[];
   accountLabel?: string;
 }

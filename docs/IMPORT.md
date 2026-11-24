@@ -47,7 +47,7 @@ Account fields:
 | `nickname`, `notes`, `details` | free form |
 | `events` | `[{ "type": "product_change", "date": "...", "fromProductId": "...", "toProductId": "..." }]`. If omitted, applied/approved/denied/closed events are generated from the dates. |
 | `bonuses` | Posted bonuses (`status: "posted"`, `earnedAt`) drive the 24/48-month rules. |
-| `benefits` | `period`: `monthly`, `quarterly`, `semiannual`, `annual`, `cardmember_year` |
+| `benefits` | Recurring credits, see [Benefits](#benefits) below. |
 
 **Product changes:** import the account with its *current* product and add a `product_change`
 event with `fromProductId`, so the once-per-lifetime and family rules still see the old product.
@@ -96,3 +96,29 @@ maintain them through the MCP tools `add_offer`, `update_offer` and `list_opport
 | `requirementType`, `amountRequired`, `windowMonths` | What it takes. "我已开户" turns these into a bonus target with a deadline. |
 | `cooldownMonths` | Bank/gift offers: blocked if you got a bonus from the same institution and kind within this many months. |
 | `expiresAt`, `sourceUrl`, `notes` | Optional. |
+
+## Benefits
+
+Each benefit (in an account's `benefits` array, or via MCP `add_benefit` / `update_benefit`):
+
+| Field | Notes |
+| --- | --- |
+| `name` | e.g. "Uber Cash" |
+| `amount` | Per period. USD for `unit: "USD"`; for other units the count per period (usually 1). |
+| `period` | `monthly`, `quarterly`, `semiannual` (Jan–Jun / Jul–Dec), `annual` (calendar year), `cardmember_year` (resets on the account anniversary from `openedAt`), `every_n_years` |
+| `everyYears` / `everyMonths` | `every_n_years` only: e.g. `4` (Global Entry) or `4.5` (PreCheck, stored as 54 months). Cycles start at `startsAt`, else the account's `openedAt`. |
+| `amountByPeriod` | Optional uneven schedule for monthly/quarterly/semiannual, keyed by period number in the calendar year (month `1`–`12`, quarter `1`–`4`, half `1`–`2`), e.g. `{"12": 35}` |
+| `unit` | `USD` (default), `free_night`, `certificate`, `other` |
+| `valueDescription`, `estValueUsd` | Non-USD units: what it is, and an optional USD estimate per unit. |
+| `enrollmentRequired` | `true` if it must be enrolled/activated. |
+| `limitations`, `sourceUrl`, `notes` | Merchant / restriction text, link, notes. |
+| `startsAt`, `endsAt` | Optional `YYYY-MM-DD`; `endsAt` is exclusive (a credit ending 2027-02-17 → `"endsAt": "2027-02-17"`). |
+| `active` | `false` = archived. |
+
+```json
+{ "name": "Uber Cash", "amount": 15, "period": "monthly", "amountByPeriod": { "12": 35 }, "enrollmentRequired": true,
+  "limitations": "Uber rides / Uber Eats, US" }
+{ "name": "Free night", "amount": 1, "unit": "free_night", "period": "cardmember_year",
+  "valueDescription": "Up to 35k points", "estValueUsd": 250 }
+{ "name": "Global Entry / PreCheck", "amount": 120, "period": "every_n_years", "everyYears": 4 }
+```

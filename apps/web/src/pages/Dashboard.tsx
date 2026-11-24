@@ -1,5 +1,6 @@
 import { ACCOUNT_KINDS, type AccountKind } from "@bonus/core";
 import type { ReactNode } from "react";
+import { fmtBenefitAmount } from "../components/AccountDetail";
 import { BonusProgress } from "../components/BonusRow";
 import { Five24Meter } from "../components/Five24Meter";
 import { KindIcon } from "../components/KindIcon";
@@ -54,7 +55,7 @@ export function DashboardPage() {
                   <p className="tabular text-xs text-faint">{t("detail.periodEnds", { date: b.currentPeriod.end })}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className="tabular text-sm font-semibold text-warn">{fmtUsd(b.remaining)}</span>
+                  <span className="tabular text-sm font-semibold text-warn">{fmtBenefitAmount(b, b.remaining)}</span>
                   <Button size="sm" onClick={() => markUsed.mutate(b)} disabled={markUsed.isPending}>
                     {t("detail.markUsed")}
                   </Button>

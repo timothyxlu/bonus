@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getDb } from "../db/client";
 import type { Env, McpProps } from "../env";
-import { accountInput, accountPatch, benefitUseInput, eventInput, institutionInput, institutionPatch, isoDate, offerInput, offerPatch, productInput, productPatch } from "../schemas";
+import { accountInput, accountPatch, benefitInput, benefitPatch, benefitUseInput, eventInput, institutionInput, institutionPatch, isoDate, offerInput, offerPatch, productInput, productPatch } from "../schemas";
 import * as catalog from "../services/catalog";
 import * as offers from "../services/offers";
 import * as accounts from "../services/accounts";
@@ -192,17 +192,58 @@ export function createMcpServer(env: Env, props: McpProps, now: () => string = (
   server.registerTool(
     "list_benefits",
     {
-      description: "List recurring benefits/credits on open accounts with used/remaining amounts for the current period.",
-      inputSchema: z.object({ accountId: z.string().optional(), unusedOnly: z.boolean().optional() }),
+      description:
+        "List recurring benefits/credits with their current period (start inclusive, end exclusive), amount available this period (honours per-period overrides), used, remaining, unused flag, yearly total (annualAmount in the benefit's unit; annualValueUsd) and all fields (unit, period, everyMonths, amountByPeriod, enrollmentRequired, limitations, sourceUrl, startsAt, endsAt). By default only active benefits on open accounts that are in effect today.",
+      inputSchema: z.object({
+        accountId: z.string().optional(),
+        unusedOnly: z.boolean().optional(),
+        includeInactive: z.boolean().optional().describe("Also archived benefits, closed accounts and benefits outside startsAt/endsAt"),
+      }),
       annotations: { readOnlyHint: true },
     },
     tool(async (a) => bon.listBenefits(svc(), a)),
   );
 
+  const benefitHelp = [
+    "period: monthly | quarterly | semiannual (Jan-Jun, Jul-Dec) | annual (calendar year) | cardmember_year (resets on the account's anniversary, from openedAt) | every_n_years (give everyYears, fractional ok: Global Entry 4, PreCheck 4.5; cycles start at startsAt, else the account's openedAt).",
+    "amount: per period, in USD for unit USD; for unit free_night | certificate | other it is the count per period (usually 1) - describe it in valueDescription (e.g. 'Free night up to 35k points') and optionally estValueUsd per unit.",
+    "amountByPeriod: optional uneven schedule for monthly/quarterly/semiannual, keyed by period number within the calendar year (month 1-12, quarter 1-4, half 1-2), e.g. Uber Cash amount 15 with amountByPeriod {\"12\": 35}.",
+    "enrollmentRequired, limitations (merchant / restrictions text), sourceUrl, notes, startsAt / endsAt (YYYY-MM-DD; endsAt exclusive, e.g. a credit ending 2027-02-17), active (false = archived).",
+  ].join(" ");
+
+  server.registerTool(
+    "add_benefit",
+    {
+      description: `Add a recurring benefit/credit to one of the user's accounts (accountId from list_accounts). ${benefitHelp}`,
+      inputSchema: benefitInput.extend({ accountId: z.string() }),
+    },
+    tool(async ({ accountId, ...b }) => bon.createBenefit(svc(), accountId, b)),
+  );
+
+  server.registerTool(
+    "update_benefit",
+    {
+      description: `Edit a benefit (benefitId from list_benefits). Only the fields you pass change; null clears an optional field. ${benefitHelp}`,
+      inputSchema: benefitPatch.extend({ benefitId: z.string() }),
+    },
+    tool(async ({ benefitId, ...patch }) => bon.updateBenefit(svc(), benefitId, patch)),
+  );
+
+  server.registerTool(
+    "delete_benefit",
+    {
+      description: "Permanently delete a benefit and its usage records. To keep history, prefer update_benefit with active: false.",
+      inputSchema: z.object({ benefitId: z.string() }),
+      annotations: { destructiveHint: true },
+    },
+    tool(async ({ benefitId }) => bon.deleteBenefit(svc(), benefitId)),
+  );
+
   server.registerTool(
     "mark_benefit_used",
     {
-      description: "Record that a benefit was used. amount defaults to the full benefit amount; usedOn defaults to today.",
+      description:
+        "Record that a benefit was used (counts toward the period containing usedOn, default today). amount defaults to what is left in that period for USD benefits (override-aware), or 1 unit for free nights / certificates.",
       inputSchema: benefitUseInput.partial().extend({ benefitId: z.string() }),
     },
     tool(async ({ benefitId, usedOn, amount, note }) =>

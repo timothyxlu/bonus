@@ -83,7 +83,10 @@ export async function importHistory(ctx: ServiceContext, raw: unknown, opts: { d
         stmts.push(ctx.db.insert(events).values({ id: newId(), ownerId: ctx.ownerId, accountId: created.id, type: e.type, date: e.date, fromProductId: e.fromProductId ?? null, toProductId: e.toProductId ?? null, note: e.note ?? null, data: e.data }));
       for (const b of item.bonuses)
         stmts.push(ctx.db.insert(bonuses).values({ ...b, id: newId(), ownerId: ctx.ownerId, accountId: created.id, productId: b.productId ?? productId }));
-      for (const b of item.benefits) stmts.push(ctx.db.insert(benefits).values({ ...b, id: newId(), ownerId: ctx.ownerId, accountId: created.id }));
+      for (const { everyYears, ...b } of item.benefits)
+        stmts.push(
+          ctx.db.insert(benefits).values({ ...b, everyMonths: b.everyMonths ?? (everyYears ? Math.round(everyYears * 12) : null), id: newId(), ownerId: ctx.ownerId, accountId: created.id }),
+        );
       if (stmts.length) await ctx.db.batch(stmts as [any, ...any[]]);
       existing.push(created);
       result.created++;

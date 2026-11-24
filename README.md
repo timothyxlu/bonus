@@ -50,6 +50,7 @@ Notes:
   `add_account`, `record_event`, `list_benefits`, `mark_benefit_used`, `upcoming_deadlines`,
   `check_eligibility`, `five_24_status`, plus `list_products`, `list_bonuses`, the opportunity tools
   `list_opportunities` / `add_offer` / `update_offer` (Claude can research current offers and record them),
+  benefit editing `add_benefit` / `update_benefit` / `delete_benefit`,
   catalog editing `list_institutions` / `add_institution` / `update_institution` / `add_product` /
   `update_product` / `archive_product`, and account editing `update_account` / `delete_account`.
 - **Editable catalog (产品库)**: seeded products and institutions are shared defaults. Editing one stores a

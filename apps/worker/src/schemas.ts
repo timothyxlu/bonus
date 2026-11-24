@@ -3,6 +3,7 @@ import {
   ACCOUNT_KINDS,
   ACCOUNT_STATUSES,
   BENEFIT_PERIODS,
+  BENEFIT_UNITS,
   BONUS_REQUIREMENT_TYPES,
   BONUS_STATUSES,
   EVENT_TYPES,
@@ -133,18 +134,58 @@ export const bonusInput = z.object({
 });
 export const bonusPatch = bonusInput.partial();
 
-export const benefitInput = z.object({
+const benefitFields = {
   name: z.string().trim().min(1).max(120),
-  amount: z.number().min(0).default(0),
+  amount: z.number().min(0),
   period: z.enum(BENEFIT_PERIODS),
+  unit: z.enum(BENEFIT_UNITS),
+  valueDescription: optText(200),
+  estValueUsd: z.number().min(0).nullish(),
+  /** every_n_years: give years (fractional ok, e.g. 4.5) or months. */
+  everyYears: z.number().positive().max(20).nullish(),
+  everyMonths: z.number().int().min(1).max(240).nullish(),
+  amountByPeriod: z.record(z.string().regex(/^(1[0-2]|[1-9])$/, { message: "keys are period numbers 1-12" }), z.number().min(0)).nullish(),
+  enrollmentRequired: z.boolean(),
+  limitations: optText(1000),
+  sourceUrl: z.string().trim().url().max(500).nullish(),
+  startsAt: optDate,
+  endsAt: optDate,
   resetRule: optText(200),
   notes: optText(1000),
-  active: z.boolean().default(true),
+  active: z.boolean(),
+};
+export const benefitInput = z.object({
+  ...benefitFields,
+  amount: benefitFields.amount.default(0),
+  unit: benefitFields.unit.default("USD"),
+  enrollmentRequired: benefitFields.enrollmentRequired.default(false),
+  active: benefitFields.active.default(true),
 });
-export const benefitPatch = benefitInput.partial();
+export const benefitPatch = z
+  .object({
+    name: benefitFields.name.optional(),
+    amount: benefitFields.amount.optional(),
+    period: benefitFields.period.optional(),
+    unit: benefitFields.unit.optional(),
+    valueDescription: benefitFields.valueDescription,
+    estValueUsd: benefitFields.estValueUsd,
+    everyYears: benefitFields.everyYears,
+    everyMonths: benefitFields.everyMonths,
+    amountByPeriod: benefitFields.amountByPeriod,
+    enrollmentRequired: benefitFields.enrollmentRequired.optional(),
+    limitations: benefitFields.limitations,
+    sourceUrl: benefitFields.sourceUrl,
+    startsAt: benefitFields.startsAt,
+    endsAt: benefitFields.endsAt,
+    resetRule: benefitFields.resetRule,
+    notes: benefitFields.notes,
+    active: benefitFields.active.optional(),
+  })
+  .strict();
 
 export const benefitUseInput = z.object({
   usedOn: isoDate,
+  /** 0 / omitted = whatever is left this period (USD), or one unit (free night etc.). */
   amount: z.number().min(0).default(0),
   note: optText(500),
 });

@@ -47,8 +47,12 @@ export const BENEFIT_PERIODS = [
   "semiannual",
   "annual",
   "cardmember_year",
+  "every_n_years",
 ] as const;
 export type BenefitPeriod = (typeof BENEFIT_PERIODS)[number];
+
+export const BENEFIT_UNITS = ["USD", "free_night", "certificate", "other"] as const;
+export type BenefitUnit = (typeof BENEFIT_UNITS)[number];
 
 /** ISO calendar date, `YYYY-MM-DD`. */
 export type IsoDate = string;

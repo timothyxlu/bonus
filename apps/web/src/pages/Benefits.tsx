@@ -29,7 +29,7 @@ export function BenefitsPage() {
             <Card key={label} title={label}>
               <div className="space-y-2">
                 {items.map((b) => (
-                  <BenefitItem key={b.id} b={b} />
+                  <BenefitItem key={b.id} b={b} allowEdit />
                 ))}
               </div>
             </Card>
