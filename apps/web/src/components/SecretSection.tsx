@@ -4,9 +4,11 @@
  * localStorage or the service worker) and are cleared on timeout, tab hide or unmount.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { browserSupportsWebAuthn, startAuthentication, type PublicKeyCredentialRequestOptionsJSON } from "@simplewebauthn/browser";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { t, type MessageKey } from "../i18n";
 import { api, ApiError } from "../lib/api";
+import { Link } from "../lib/router";
 import { Button, ErrorText, Field, Input, Sheet } from "./ui";
 
 interface Meta {
@@ -75,7 +77,10 @@ export function SecretSection({ accountId, kind, last4 }: { accountId: string; k
     setError(null);
     setBusy(true);
     try {
-      const r = await api.post<{ values: Record<string, string>; revealSeconds: number }>(`/accounts/${accountId}/secret/reveal`);
+      if (!browserSupportsWebAuthn()) throw new Error(t("sec.biometricUnsupported"));
+      const options = await api.post<PublicKeyCredentialRequestOptionsJSON>(`/accounts/${accountId}/secret/reveal/options`);
+      const assertion = await startAuthentication({ optionsJSON: options });
+      const r = await api.post<{ values: Record<string, string>; revealSeconds: number }>(`/accounts/${accountId}/secret/reveal`, assertion);
       setValues(r.values);
       setLeft(r.revealSeconds);
       if (timer.current) clearInterval(timer.current);
@@ -165,6 +170,13 @@ export function SecretSection({ accountId, kind, last4 }: { accountId: string; k
         </div>
       ) : apiErr?.code === "rate_limited" ? (
         <p className="mt-2 text-sm text-warn">{t("sec.rateLimited")}</p>
+      ) : apiErr?.code === "biometric_not_configured" ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[var(--radius-control)] bg-warn-soft px-3 py-2 text-sm text-warn">
+          {t("sec.biometricRequired")}
+          <Link to="/settings" className="rounded px-2 py-1 text-xs font-medium text-brand hover:bg-brand-soft">
+            {t("sec.biometricSetup")}
+          </Link>
+        </div>
       ) : (
         error && (
           <div className="mt-2">

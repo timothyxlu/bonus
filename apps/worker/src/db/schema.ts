@@ -338,3 +338,30 @@ export const secretAudit = sqliteTable(
   },
   (t) => [index("secret_audit_owner_idx").on(t.ownerId, t.action, t.at)],
 );
+
+/** Platform WebAuthn credentials used to authorize secret reveals. */
+export const webauthnCredentials = sqliteTable(
+  "webauthn_credentials",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    publicKey: text("public_key").notNull(),
+    counter: integer("counter").notNull().default(0),
+    transports: text("transports", { mode: "json" }).$type<string[]>().notNull().default([]),
+    deviceType: text("device_type").notNull(),
+    backedUp: integer("backed_up", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+    lastUsedAt: text("last_used_at"),
+  },
+  (t) => [index("webauthn_credentials_owner_idx").on(t.ownerId)],
+);
+
+/** A single short-lived, one-use WebAuthn ceremony challenge per owner. */
+export const webauthnChallenges = sqliteTable("webauthn_challenges", {
+  ownerId: text("owner_id").primaryKey(),
+  challenge: text("challenge").notNull(),
+  ceremony: text("ceremony").$type<"registration" | "authentication">().notNull(),
+  accountId: text("account_id").references(() => accounts.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: createdAt(),
+});
