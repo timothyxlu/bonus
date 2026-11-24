@@ -19,7 +19,7 @@ export function SettingsPage() {
   const me = useMe();
   return (
     <div className="grid grid-cols-1 gap-4 lg:gap-6 xl:grid-cols-2">
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <Card title={t("settings.me")}>
           <p className="text-sm">
             {me.data?.email ?? "…"} {me.data && <Badge>{me.data.source}</Badge>}
@@ -29,7 +29,7 @@ export function SettingsPage() {
         <InstallCard />
         <ImportCard />
       </div>
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <CatalogCard />
         <Card title={t("settings.mcp")}>
           <p className="text-sm text-muted">{t("settings.mcpHint")}</p>
@@ -124,7 +124,7 @@ function BiometricCard() {
   );
 }
 
-function ImportCard() {
+export function ImportCard() {
   const [text, setText] = useState("");
   const [type, setType] = useState<"json" | "csv">("json");
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -144,14 +144,14 @@ function ImportCard() {
     <Card title={t("settings.import")}>
       <p className="mb-3 text-sm text-muted">{t("settings.importHint")}</p>
       <div className="space-y-3">
-        <div className="flex gap-2">
-          <Input type="file" accept=".json,.csv,application/json,text/csv" onChange={(e) => onFile(e.target.files?.[0])} className="flex-1 py-1.5" />
-          <Select value={type} onChange={(e) => setType(e.target.value as "json" | "csv")} className="w-24">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_6rem]">
+          <Input type="file" accept=".json,.csv,application/json,text/csv" onChange={(e) => onFile(e.target.files?.[0])} className="w-full min-w-0 py-1.5" />
+          <Select value={type} onChange={(e) => setType(e.target.value as "json" | "csv")} className="w-full min-w-0">
             <option value="json">JSON</option>
             <option value="csv">CSV</option>
           </Select>
         </div>
-        <Textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-xs" placeholder='{"version":1,"accounts":[...]}' />
+        <Textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} className="w-full min-w-0 font-mono text-xs" placeholder='{"version":1,"accounts":[...]}' />
         <ErrorText error={run.error} />
         {result && (
           <div className="rounded-[var(--radius-control)] bg-sunken p-3 text-sm">
@@ -166,7 +166,7 @@ function ImportCard() {
             ))}
           </div>
         )}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button onClick={() => go(true)} disabled={!text || run.isPending}>
             {t("settings.dryRun")}
           </Button>
