@@ -350,6 +350,7 @@ const zhCN = {
   "sec.reauth": "为了安全，需要最近 15 分钟内登录过才能显示。",
   "sec.reauthButton": "重新登录",
   "sec.rateLimited": "显示次数过多，请稍后再试",
+  "sec.challengeRetry": "设备验证请求已失效，请再次点击显示重试；无需重新注册设备。",
   "sec.biometricRequired": "需要先在设置中启用设备验证，才能显示敏感信息。",
   "sec.biometricSetup": "前往设置",
   "sec.biometricUnsupported": "当前浏览器不支持设备验证，无法显示敏感信息。",

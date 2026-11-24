@@ -356,12 +356,12 @@ export const webauthnCredentials = sqliteTable(
   (t) => [index("webauthn_credentials_owner_idx").on(t.ownerId)],
 );
 
-/** A single short-lived, one-use WebAuthn ceremony challenge per owner. */
+/** Short-lived, one-use WebAuthn ceremony challenges, keyed by their random value. */
 export const webauthnChallenges = sqliteTable("webauthn_challenges", {
-  ownerId: text("owner_id").primaryKey(),
-  challenge: text("challenge").notNull(),
+  challenge: text("challenge").primaryKey(),
+  ownerId: text("owner_id").notNull(),
   ceremony: text("ceremony").$type<"registration" | "authentication">().notNull(),
   accountId: text("account_id").references(() => accounts.id, { onDelete: "cascade" }),
   expiresAt: text("expires_at").notNull(),
   createdAt: createdAt(),
-});
+}, (t) => [index("webauthn_challenges_owner_idx").on(t.ownerId)]);

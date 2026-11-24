@@ -78,9 +78,19 @@ export function SecretSection({ accountId, kind, last4 }: { accountId: string; k
     setBusy(true);
     try {
       if (!browserSupportsWebAuthn()) throw new Error(t("sec.biometricUnsupported"));
-      const options = await api.post<PublicKeyCredentialRequestOptionsJSON>(`/accounts/${accountId}/secret/reveal/options`);
-      const assertion = await startAuthentication({ optionsJSON: options });
-      const r = await api.post<{ values: Record<string, string>; revealSeconds: number }>(`/accounts/${accountId}/secret/reveal`, assertion);
+      let r: { values: Record<string, string>; revealSeconds: number } | undefined;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const options = await api.post<PublicKeyCredentialRequestOptionsJSON>(`/accounts/${accountId}/secret/reveal/options`);
+        const assertion = await startAuthentication({ optionsJSON: options });
+        try {
+          r = await api.post<{ values: Record<string, string>; revealSeconds: number }>(`/accounts/${accountId}/secret/reveal`, assertion);
+          break;
+        } catch (e) {
+          if (attempt === 0 && e instanceof ApiError && e.code === "webauthn_challenge_invalid") continue;
+          throw e;
+        }
+      }
+      if (!r) throw new Error(t("sec.challengeRetry"));
       setValues(r.values);
       setLeft(r.revealSeconds);
       if (timer.current) clearInterval(timer.current);
@@ -170,6 +180,8 @@ export function SecretSection({ accountId, kind, last4 }: { accountId: string; k
         </div>
       ) : apiErr?.code === "rate_limited" ? (
         <p className="mt-2 text-sm text-warn">{t("sec.rateLimited")}</p>
+      ) : apiErr?.code === "webauthn_challenge_invalid" ? (
+        <p className="mt-2 text-sm text-warn">{t("sec.challengeRetry")}</p>
       ) : apiErr?.code === "biometric_not_configured" ? (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[var(--radius-control)] bg-warn-soft px-3 py-2 text-sm text-warn">
           {t("sec.biometricRequired")}
